@@ -1,1 +1,655 @@
-[]
+[
+  {
+    "id": "bs-q01",
+    "topicId": "binary-search",
+    "type": "value",
+    "prompt": "当前区间[3,4]的中点下标mid是多少？",
+    "context": {
+      "algorithm": "binary-search",
+      "indexBase": 0,
+      "interval": "closed",
+      "midRule": "left + floor((right-left)/2)",
+      "duplicatePolicy": "return-on-first-equal-probe",
+      "sourceVersion": null,
+      "alignmentStatus": "integration-pending",
+      "array": [
+        1,
+        3,
+        5,
+        7,
+        9
+      ],
+      "target": 7,
+      "event": "before-probe",
+      "left": 3,
+      "right": 4,
+      "mid": null,
+      "algorithmContractId": "binary-search-content-v1"
+    },
+    "options": [],
+    "answer": 3,
+    "explanation": "mid=3+floor((4-3)/2)=3。答案是下标3，不是该位置的值7。",
+    "hints": [
+      "先看题目问下标还是元素值。",
+      "使用left+floor((right-left)/2)，小数部分向下取整。",
+      "floor(1/2)=0，所以mid=3+0=3。"
+    ],
+    "sourceRefs": [
+      {
+        "cardId": "bs-k02",
+        "sourceId": "project-original-binary-search",
+        "chapter": null,
+        "pages": null
+      },
+      {
+        "cardId": "bs-k03",
+        "sourceId": "project-original-binary-search",
+        "chapter": null,
+        "pages": null
+      }
+    ],
+    "verified": true,
+    "version": "1.0.0",
+    "sourceType": "original",
+    "review": {
+      "method": "project-rule-review-and-deterministic-checks",
+      "content": "checked",
+      "textbook": "not-required",
+      "integration": "not-run",
+      "checkedAt": "2026-10-15",
+      "note": "verified表示本批内容通过规则和确定性检查，不表示教材、成员08或完整软件已验收。"
+    }
+  },
+  {
+    "id": "bs-q02",
+    "topicId": "binary-search",
+    "type": "choice",
+    "prompt": "下一步应当如何更新边界？",
+    "context": {
+      "algorithm": "binary-search",
+      "indexBase": 0,
+      "interval": "closed",
+      "midRule": "left + floor((right-left)/2)",
+      "duplicatePolicy": "return-on-first-equal-probe",
+      "sourceVersion": null,
+      "alignmentStatus": "integration-pending",
+      "array": [
+        1,
+        3,
+        5,
+        7,
+        9
+      ],
+      "target": 7,
+      "event": "probe",
+      "left": 0,
+      "right": 4,
+      "mid": 2,
+      "algorithmContractId": "binary-search-content-v1"
+    },
+    "options": [
+      {
+        "id": "A",
+        "text": "left=2，right=4"
+      },
+      {
+        "id": "B",
+        "text": "left=3，right=4"
+      },
+      {
+        "id": "C",
+        "text": "left=0，right=1"
+      },
+      {
+        "id": "D",
+        "text": "left=0，right=2"
+      }
+    ],
+    "answer": "B",
+    "explanation": "A[2]=5<7，排除下标0～2，left=mid+1=3，right保持4。",
+    "hints": [
+      "先比较A[mid]和target。",
+      "中点值偏小时，排除中点及其左侧候选元素。",
+      "5<7，left=2+1=3，right=4，选B。"
+    ],
+    "sourceRefs": [
+      {
+        "cardId": "bs-k04",
+        "sourceId": "project-original-binary-search",
+        "chapter": null,
+        "pages": null
+      }
+    ],
+    "verified": true,
+    "version": "1.0.0",
+    "sourceType": "original",
+    "review": {
+      "method": "project-rule-review-and-deterministic-checks",
+      "content": "checked",
+      "textbook": "not-required",
+      "integration": "not-run",
+      "checkedAt": "2026-10-15",
+      "note": "verified表示本批内容通过规则和确定性检查，不表示教材、成员08或完整软件已验收。"
+    }
+  },
+  {
+    "id": "bs-q03",
+    "topicId": "binary-search",
+    "type": "value",
+    "prompt": "下一步更新后的right是多少？",
+    "context": {
+      "algorithm": "binary-search",
+      "indexBase": 0,
+      "interval": "closed",
+      "midRule": "left + floor((right-left)/2)",
+      "duplicatePolicy": "return-on-first-equal-probe",
+      "sourceVersion": null,
+      "alignmentStatus": "integration-pending",
+      "array": [
+        1,
+        3,
+        5,
+        7,
+        9
+      ],
+      "target": 1,
+      "event": "probe",
+      "left": 0,
+      "right": 4,
+      "mid": 2,
+      "algorithmContractId": "binary-search-content-v1"
+    },
+    "options": [],
+    "answer": 1,
+    "explanation": "A[2]=5>1，排除下标2～4，right=mid-1=1。left仍为0。",
+    "hints": [
+      "先比较中点值5和目标1。",
+      "中点值偏大时排除中点及其右侧，右边界取mid-1。",
+      "right=2-1=1。"
+    ],
+    "sourceRefs": [
+      {
+        "cardId": "bs-k05",
+        "sourceId": "project-original-binary-search",
+        "chapter": null,
+        "pages": null
+      }
+    ],
+    "verified": true,
+    "version": "1.0.0",
+    "sourceType": "original",
+    "review": {
+      "method": "project-rule-review-and-deterministic-checks",
+      "content": "checked",
+      "textbook": "not-required",
+      "integration": "not-run",
+      "checkedAt": "2026-10-15",
+      "note": "verified表示本批内容通过规则和确定性检查，不表示教材、成员08或完整软件已验收。"
+    }
+  },
+  {
+    "id": "bs-q04",
+    "topicId": "binary-search",
+    "type": "judgement",
+    "prompt": "left=right时区间已经为空，不应再比较这个位置。",
+    "context": {
+      "algorithm": "binary-search",
+      "indexBase": 0,
+      "interval": "closed",
+      "midRule": "left + floor((right-left)/2)",
+      "duplicatePolicy": "return-on-first-equal-probe",
+      "sourceVersion": null,
+      "alignmentStatus": "integration-pending",
+      "array": [
+        1,
+        3,
+        5,
+        7,
+        9
+      ],
+      "target": 7,
+      "event": "before-probe",
+      "left": 3,
+      "right": 3,
+      "mid": null,
+      "algorithmContractId": "binary-search-content-v1"
+    },
+    "options": [],
+    "answer": false,
+    "explanation": "闭区间[3,3]包含下标3，仍有一个元素，left≤right成立，应继续比较。只有left>right才为空。",
+    "hints": [
+      "闭区间的两个端点是否包含在内？",
+      "非空闭区间长度为right-left+1。",
+      "3-3+1=1，尚有一个元素，因此该说法错误。"
+    ],
+    "sourceRefs": [
+      {
+        "cardId": "bs-k02",
+        "sourceId": "project-original-binary-search",
+        "chapter": null,
+        "pages": null
+      },
+      {
+        "cardId": "bs-k06",
+        "sourceId": "project-original-binary-search",
+        "chapter": null,
+        "pages": null
+      }
+    ],
+    "verified": true,
+    "version": "1.0.0",
+    "sourceType": "original",
+    "review": {
+      "method": "project-rule-review-and-deterministic-checks",
+      "content": "checked",
+      "textbook": "not-required",
+      "integration": "not-run",
+      "checkedAt": "2026-10-15",
+      "note": "verified表示本批内容通过规则和确定性检查，不表示教材、成员08或完整软件已验收。"
+    }
+  },
+  {
+    "id": "bs-q05",
+    "topicId": "binary-search",
+    "type": "value",
+    "prompt": "按本题约定执行至结束，返回的结果是多少？",
+    "context": {
+      "algorithm": "binary-search",
+      "indexBase": 0,
+      "interval": "closed",
+      "midRule": "left + floor((right-left)/2)",
+      "duplicatePolicy": "return-on-first-equal-probe",
+      "sourceVersion": null,
+      "alignmentStatus": "integration-pending",
+      "array": [
+        1,
+        3,
+        5,
+        7,
+        9
+      ],
+      "target": 4,
+      "event": "init",
+      "left": 0,
+      "right": 4,
+      "mid": null,
+      "algorithmContractId": "binary-search-content-v1"
+    },
+    "options": [],
+    "answer": -1,
+    "explanation": "依次比较下标2(值5)、0(值1)、1(值3)，区间依次变为[0,1]、[1,1]、[2,1]。最后left>right，返回-1。",
+    "hints": [
+      "数组中有与4相等的元素吗？仍需说明算法如何结束。",
+      "按中点比较更新边界，直到命中或left>right。",
+      "比较5、1、3后得到left=2、right=1，空区间返回-1。"
+    ],
+    "sourceRefs": [
+      {
+        "cardId": "bs-k03",
+        "sourceId": "project-original-binary-search",
+        "chapter": null,
+        "pages": null
+      },
+      {
+        "cardId": "bs-k04",
+        "sourceId": "project-original-binary-search",
+        "chapter": null,
+        "pages": null
+      },
+      {
+        "cardId": "bs-k05",
+        "sourceId": "project-original-binary-search",
+        "chapter": null,
+        "pages": null
+      },
+      {
+        "cardId": "bs-k06",
+        "sourceId": "project-original-binary-search",
+        "chapter": null,
+        "pages": null
+      }
+    ],
+    "verified": true,
+    "version": "1.0.0",
+    "sourceType": "original",
+    "review": {
+      "method": "project-rule-review-and-deterministic-checks",
+      "content": "checked",
+      "textbook": "not-required",
+      "integration": "not-run",
+      "checkedAt": "2026-10-15",
+      "note": "verified表示本批内容通过规则和确定性检查，不表示教材、成员08或完整软件已验收。"
+    }
+  },
+  {
+    "id": "bs-q06",
+    "topicId": "binary-search",
+    "type": "value",
+    "prompt": "空数组查找7，结束结果是多少？",
+    "context": {
+      "algorithm": "binary-search",
+      "indexBase": 0,
+      "interval": "closed",
+      "midRule": "left + floor((right-left)/2)",
+      "duplicatePolicy": "return-on-first-equal-probe",
+      "sourceVersion": null,
+      "alignmentStatus": "integration-pending",
+      "array": [],
+      "target": 7,
+      "event": "init",
+      "left": 0,
+      "right": -1,
+      "mid": null,
+      "algorithmContractId": "binary-search-content-v1"
+    },
+    "options": [],
+    "answer": -1,
+    "explanation": "初始化为[0,-1]，循环条件0≤-1不成立，比较0次并返回-1；不能访问A[0]。",
+    "hints": [
+      "先写出数组长度和初始right。",
+      "right=n-1，只有left≤right才能访问中点。",
+      "n=0，right=-1，区间初始就为空，返回-1。"
+    ],
+    "sourceRefs": [
+      {
+        "cardId": "bs-k06",
+        "sourceId": "project-original-binary-search",
+        "chapter": null,
+        "pages": null
+      },
+      {
+        "cardId": "bs-k07",
+        "sourceId": "project-original-binary-search",
+        "chapter": null,
+        "pages": null
+      }
+    ],
+    "verified": true,
+    "version": "1.0.0",
+    "sourceType": "original",
+    "review": {
+      "method": "project-rule-review-and-deterministic-checks",
+      "content": "checked",
+      "textbook": "not-required",
+      "integration": "not-run",
+      "checkedAt": "2026-10-15",
+      "note": "verified表示本批内容通过规则和确定性检查，不表示教材、成员08或完整软件已验收。"
+    }
+  },
+  {
+    "id": "bs-q07",
+    "topicId": "binary-search",
+    "type": "value",
+    "prompt": "数组[7]查找7，返回的下标是多少？",
+    "context": {
+      "algorithm": "binary-search",
+      "indexBase": 0,
+      "interval": "closed",
+      "midRule": "left + floor((right-left)/2)",
+      "duplicatePolicy": "return-on-first-equal-probe",
+      "sourceVersion": null,
+      "alignmentStatus": "integration-pending",
+      "array": [
+        7
+      ],
+      "target": 7,
+      "event": "init",
+      "left": 0,
+      "right": 0,
+      "mid": null,
+      "algorithmContractId": "binary-search-content-v1"
+    },
+    "options": [],
+    "answer": 0,
+    "explanation": "[0,0]仍为非空，mid=0，A[0]=7命中，返回下标0。不要把元素值7当成下标。",
+    "hints": [
+      "题目问下标，单元素数组的下标从几开始？",
+      "left=right时仍需比较，mid=left。",
+      "mid=0且A[0]=7，返回0。"
+    ],
+    "sourceRefs": [
+      {
+        "cardId": "bs-k02",
+        "sourceId": "project-original-binary-search",
+        "chapter": null,
+        "pages": null
+      },
+      {
+        "cardId": "bs-k07",
+        "sourceId": "project-original-binary-search",
+        "chapter": null,
+        "pages": null
+      }
+    ],
+    "verified": true,
+    "version": "1.0.0",
+    "sourceType": "original",
+    "review": {
+      "method": "project-rule-review-and-deterministic-checks",
+      "content": "checked",
+      "textbook": "not-required",
+      "integration": "not-run",
+      "checkedAt": "2026-10-15",
+      "note": "verified表示本批内容通过规则和确定性检查，不表示教材、成员08或完整软件已验收。"
+    }
+  },
+  {
+    "id": "bs-q08",
+    "topicId": "binary-search",
+    "type": "value",
+    "prompt": "数组[7]查找4，返回的结果是多少？",
+    "context": {
+      "algorithm": "binary-search",
+      "indexBase": 0,
+      "interval": "closed",
+      "midRule": "left + floor((right-left)/2)",
+      "duplicatePolicy": "return-on-first-equal-probe",
+      "sourceVersion": null,
+      "alignmentStatus": "integration-pending",
+      "array": [
+        7
+      ],
+      "target": 4,
+      "event": "init",
+      "left": 0,
+      "right": 0,
+      "mid": null,
+      "algorithmContractId": "binary-search-content-v1"
+    },
+    "options": [],
+    "answer": -1,
+    "explanation": "mid=0且7>4，令right=-1，left保持0。候选区间[0,-1]为空，因此返回-1。",
+    "hints": [
+      "只有一个元素，是否就一定等于目标？",
+      "比较后仍按偏大时right=mid-1更新。",
+      "7>4，right=0-1=-1，left=0>right，返回-1。"
+    ],
+    "sourceRefs": [
+      {
+        "cardId": "bs-k05",
+        "sourceId": "project-original-binary-search",
+        "chapter": null,
+        "pages": null
+      },
+      {
+        "cardId": "bs-k06",
+        "sourceId": "project-original-binary-search",
+        "chapter": null,
+        "pages": null
+      },
+      {
+        "cardId": "bs-k07",
+        "sourceId": "project-original-binary-search",
+        "chapter": null,
+        "pages": null
+      }
+    ],
+    "verified": true,
+    "version": "1.0.0",
+    "sourceType": "original",
+    "review": {
+      "method": "project-rule-review-and-deterministic-checks",
+      "content": "checked",
+      "textbook": "not-required",
+      "integration": "not-run",
+      "checkedAt": "2026-10-15",
+      "note": "verified表示本批内容通过规则和确定性检查，不表示教材、成员08或完整软件已验收。"
+    }
+  },
+  {
+    "id": "bs-q09",
+    "topicId": "binary-search",
+    "type": "choice",
+    "prompt": "本题版本遇到相等立即返回mid。这次实际返回哪个下标？",
+    "context": {
+      "algorithm": "binary-search",
+      "indexBase": 0,
+      "interval": "closed",
+      "midRule": "left + floor((right-left)/2)",
+      "duplicatePolicy": "return-on-first-equal-probe",
+      "sourceVersion": null,
+      "alignmentStatus": "integration-pending",
+      "array": [
+        1,
+        3,
+        3,
+        3,
+        5
+      ],
+      "target": 3,
+      "event": "init",
+      "left": 0,
+      "right": 4,
+      "mid": null,
+      "algorithmContractId": "binary-search-content-v1"
+    },
+    "options": [
+      {
+        "id": "A",
+        "text": "1"
+      },
+      {
+        "id": "B",
+        "text": "2"
+      },
+      {
+        "id": "C",
+        "text": "3"
+      },
+      {
+        "id": "D",
+        "text": "必须继续搜索才能确定"
+      }
+    ],
+    "answer": "B",
+    "explanation": "第一轮mid=2、A[2]=3，立即返回2。题目限定了确定的执行流程，所以不能把其他匹配下标当作此次运行结果。",
+    "hints": [
+      "先计算第一轮中点。",
+      "本题遇到相等立即返回，不继续寻找最左位置。",
+      "mid=2且A[2]=3，所以返回2，选B。"
+    ],
+    "sourceRefs": [
+      {
+        "cardId": "bs-k03",
+        "sourceId": "project-original-binary-search",
+        "chapter": null,
+        "pages": null
+      },
+      {
+        "cardId": "bs-k08",
+        "sourceId": "project-original-binary-search",
+        "chapter": null,
+        "pages": null
+      }
+    ],
+    "verified": true,
+    "version": "1.0.0",
+    "sourceType": "original",
+    "review": {
+      "method": "project-rule-review-and-deterministic-checks",
+      "content": "checked",
+      "textbook": "not-required",
+      "integration": "not-run",
+      "checkedAt": "2026-10-15",
+      "note": "verified表示本批内容通过规则和确定性检查，不表示教材、成员08或完整软件已验收。"
+    }
+  },
+  {
+    "id": "bs-q10",
+    "topicId": "binary-search",
+    "type": "choice",
+    "prompt": "第一轮比较后进入move-left快照，此时mid应该显示什么？",
+    "context": {
+      "algorithm": "binary-search",
+      "indexBase": 0,
+      "interval": "closed",
+      "midRule": "left + floor((right-left)/2)",
+      "duplicatePolicy": "return-on-first-equal-probe",
+      "sourceVersion": null,
+      "alignmentStatus": "integration-pending",
+      "array": [
+        1,
+        3,
+        5,
+        7,
+        9
+      ],
+      "target": 7,
+      "event": "move-left",
+      "left": 3,
+      "right": 4,
+      "mid": null,
+      "algorithmContractId": "binary-search-content-v1"
+    },
+    "options": [
+      {
+        "id": "A",
+        "text": "2（沿用上一轮）"
+      },
+      {
+        "id": "B",
+        "text": "3（下一轮中点）"
+      },
+      {
+        "id": "C",
+        "text": "null（当前轮尚未计算）"
+      },
+      {
+        "id": "D",
+        "text": "7（目标值）"
+      }
+    ],
+    "answer": "C",
+    "explanation": "项目约定初始化及更新边界后mid=null。新一轮probe才计算3；上一轮mid=2已经过期。",
+    "hints": [
+      "区分上一轮比较、更新边界和下一轮比较三个时刻。",
+      "项目约定：更新边界后的快照清空mid。",
+      "当前是move-left而非下一probe，应显示null，选C。"
+    ],
+    "sourceRefs": [
+      {
+        "cardId": "bs-k04",
+        "sourceId": "project-original-binary-search",
+        "chapter": null,
+        "pages": null
+      },
+      {
+        "cardId": "bs-k10",
+        "sourceId": "project-original-binary-search",
+        "chapter": null,
+        "pages": null
+      }
+    ],
+    "verified": true,
+    "version": "1.0.0",
+    "sourceType": "original",
+    "review": {
+      "method": "project-rule-review-and-deterministic-checks",
+      "content": "checked",
+      "textbook": "not-required",
+      "integration": "not-run",
+      "checkedAt": "2026-10-15",
+      "note": "verified表示本批内容通过规则和确定性检查，不表示教材、成员08或完整软件已验收。"
+    }
+  }
+]
