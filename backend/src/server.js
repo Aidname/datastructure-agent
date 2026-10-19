@@ -3,36 +3,87 @@ import { readFile } from 'node:fs/promises';
 import { dirname, extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { handleCreateRun, handleGetRun, handleGetStep } from './routes/runs.js';
+import { handleGetExercises, handleCheckExercise } from './routes/exercises.js';
+
 const here = dirname(fileURLToPath(import.meta.url));
 const frontendRoot = resolve(here, '../../frontend');
 const mime = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json', '.svg': 'image/svg+xml' };
-const plannedRoutes = [
-  ['POST', /^\/api\/algorithms\/binary-search\/runs$/, 'M04'],
-  ['GET', /^\/api\/runs\/[^/]+(?:\/steps\/\d+)?$/, 'M04'],
-  ['POST', /^\/api\/agent\/explain$/, 'M05'],
-  ['GET', /^\/api\/knowledge\/cards$/, 'M06'],
-  ['GET', /^\/api\/exercises$/, 'M04+M06'],
-  ['POST', /^\/api\/exercises\/check$/, 'M04+M07']
-];
 
 function json(response, code, value) {
   response.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' });
   response.end(JSON.stringify(value));
 }
 
+// 修复审查意见：按字节限制请求体大小（10KB）
+async function readBody(request) {
+  let size = 0;
+  const chunks = [];
+  for await (const chunk of request) {
+    size += chunk.length;
+    if (size > 10240) {
+      throw new Error('BODY_TOO_LARGE');
+    }
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
 const server = createServer(async (request, response) => {
   try {
     const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
-    if (pathname === '/api/health' && request.method === 'GET') {
-      return json(response, 200, { ok: true, stage: 'scaffold', implemented: ['static-page', 'health'], modelCallsEnabled: false });
+    const method = request.method;
+
+    // 1. 健康检查
+    if (pathname === '/api/health' && method === 'GET') {
+      return json(response, 200, { ok: true, stage: 'scaffold', implemented: ['static-page', 'health', 'runs', 'exercises'], modelCallsEnabled: false });
     }
-    const planned = plannedRoutes.find(([method, pattern]) => method === request.method && pattern.test(pathname));
+
+    // 2. 04 的运行路由
+    if (pathname === '/api/algorithms/binary-search/runs' && method === 'POST') {
+      const body = await readBody(request);
+      return handleCreateRun(request, response, body);
+    }
+
+    const stepMatch = pathname.match(/^\/api\/runs\/([^/]+)\/steps\/(\d+)$/);
+    if (stepMatch && method === 'GET') {
+      return handleGetStep(request, response, stepMatch[1], stepMatch[2]);
+    }
+
+    const runMatch = pathname.match(/^\/api\/runs\/([^/]+)$/);
+    if (runMatch && method === 'GET') {
+      return handleGetRun(request, response, runMatch[1]);
+    }
+
+    // 3. 04 的题目与判分路由
+    if (pathname === '/api/exercises' && method === 'GET') {
+      return handleGetExercises(request, response);
+    }
+    if (pathname === '/api/exercises/check' && method === 'POST') {
+      const body = await readBody(request);
+      return handleCheckExercise(request, response, body);
+    }
+
+    // 4. 05 的 Agent 降级处理
+    if (pathname === '/api/agent/explain' && method === 'POST') {
+      request.resume();
+      return json(response, 503, { error: { code: 'MODEL_NOT_CONFIGURED', message: '模型未配置，不影响算法和判分。' } });
+    }
+
+    // 5. 其他尚未实现的计划路由
+    const plannedRoutes = [
+      ['GET', /^\/api\/knowledge\/cards$/, 'M06']
+    ];
+
+    const planned = plannedRoutes.find(([m, pattern]) => m === method && pattern.test(pathname));
     if (planned) {
       request.resume();
       return json(response, 501, { error: { code: 'NOT_IMPLEMENTED', message: '当前仅为协作骨架，业务功能待实现。', owner: planned[2] } });
     }
+
+    // 6. 静态文件处理
     if (pathname.startsWith('/api/')) return json(response, 404, { error: { code: 'NOT_FOUND', message: '接口不存在。' } });
-    if (!['GET', 'HEAD'].includes(request.method)) return json(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持。' } });
+    if (!['GET', 'HEAD'].includes(method)) return json(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持。' } });
     const file = resolve(frontendRoot, '.' + (pathname === '/' ? '/index.html' : pathname));
     if (!file.startsWith(frontendRoot + sep)) return json(response, 403, { error: { code: 'FORBIDDEN', message: '路径不允许。' } });
     const type = mime[extname(file)];
@@ -40,12 +91,16 @@ const server = createServer(async (request, response) => {
     try {
       const body = await readFile(file);
       response.writeHead(200, { 'Content-Type': type + '; charset=utf-8' });
-      response.end(request.method === 'HEAD' ? undefined : body);
+      response.end(method === 'HEAD' ? undefined : body);
     } catch (error) {
       if (['ENOENT', 'EISDIR', 'ENOTDIR'].includes(error.code)) return json(response, 404, { error: { code: 'NOT_FOUND', message: '文件不存在。' } });
       throw error;
     }
-  } catch {
+  } catch (error) {
+    if (error.message === 'BODY_TOO_LARGE') {
+      return json(response, 400, { error: { code: 'INVALID_INPUT', message: '请求体超过 10KB 限制' } });
+    }
+    console.error(error);
     json(response, 400, { error: { code: 'INVALID_REQUEST', message: '请求无法处理。' } });
   }
 });
