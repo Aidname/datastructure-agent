@@ -2,26 +2,36 @@
 import { generateSteps } from '../../../shared/algorithms/binarySearch.js';
 import { createRun, getRun } from '../runs/store.js';
 
+
 export function handleCreateRun(req, res, body) {
   try {
+    // 修复8：限制请求体大小 (10KB)
+    if (body.length > 10240) {
+      return sendError(res, 400, 'INVALID_INPUT', '请求体过大');
+    }
+
     const { array, target } = JSON.parse(body);
 
-    // 1. 基础校验
-    if (!Array.isArray(array) || typeof target !== 'number') {
-      return sendError(res, 400, 'INVALID_INPUT', 'array 必须是数组，target 必须是数字');
+    // 修复2：使用 Number.isSafeInteger 严格校验
+    if (!Array.isArray(array)) {
+      return sendError(res, 400, 'INVALID_INPUT', 'array 必须是数组');
+    }
+    if (!Number.isSafeInteger(target)) {
+      return sendError(res, 400, 'INVALID_INPUT', 'target 必须是安全整数');
     }
     if (array.length > 100) {
       return sendError(res, 400, 'INVALID_INPUT', '数组长度不能超过 100');
     }
     
-    // 2. 有序性校验（契约规定：不偷偷排序）
-    for (let i = 0; i < array.length - 1; i++) {
-      if (array[i] > array[i + 1]) {
+    for (let i = 0; i < array.length; i++) {
+      if (!Number.isSafeInteger(array[i])) {
+        return sendError(res, 400, 'INVALID_INPUT', '数组元素必须全是安全整数');
+      }
+      if (i > 0 && array[i] < array[i - 1]) {
         return sendError(res, 400, 'INVALID_INPUT', '数组必须是有序的');
       }
     }
 
-    // 3. 生成步骤并保存
     const algoResult = generateSteps(array, target);
     const run = createRun({
       algorithm: 'binary-search',
@@ -31,13 +41,13 @@ export function handleCreateRun(req, res, body) {
       result: algoResult.result,
     });
 
-    // 4. 返回
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(run));
   } catch (e) {
     sendError(res, 400, 'INVALID_INPUT', '请求体格式错误');
   }
 }
+// 保留原有的 handleGetRun 和 handleGetStep ...
 
 export function handleGetRun(req, res, runId) {
   const run = getRun(runId);

@@ -34,7 +34,7 @@ const server = createServer(async (request, response) => {
 
     // 1. 健康检查
     if (pathname === '/api/health' && method === 'GET') {
-      return json(response, 200, { ok: true, stage: 'scaffold', implemented: ['static-page', 'health'], modelCallsEnabled: false });
+      return json(response, 200, { ok: true, stage: 'scaffold', implemented:  ['static-page', 'health', 'runs', 'exercises'], modelCallsEnabled: false });
     }
 
     // 2. 04 的业务路由

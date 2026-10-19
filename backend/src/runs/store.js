@@ -1,6 +1,6 @@
 // backend/src/runs/store.js
 export const runsStore = new Map();
-const RUN_TTL = 1000 * 60 * 60; // 保留1小时
+const RUN_TTL = 1000 * 60 * 60; // 保留 1 小时
 
 export function createRun(runData) {
   const runId = 'run_' + Math.random().toString(36).substring(2, 10);
@@ -17,10 +17,21 @@ export function getRun(runId) {
   const run = runsStore.get(runId);
   if (!run) return null;
   
-  // 检查是否过期
+  // 查询时也顺便检查一次是否过期
   if (Date.now() - run.createdAt > RUN_TTL) {
     runsStore.delete(runId);
     return null;
   }
   return run;
 }
+
+// 修复 8：后台定时主动清理过期数据
+// 每分钟扫描一次 Map，把超过 1 小时的 Run 删掉，防止内存泄漏
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, run] of runsStore.entries()) {
+    if (now - run.createdAt > RUN_TTL) {
+      runsStore.delete(id);
+    }
+  }
+}, 60 * 1000); 
