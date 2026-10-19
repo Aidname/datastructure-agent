@@ -3,11 +3,21 @@
   "algorithm": "binary-search",
   "stepIndex": 0,
   "event": "init",
-  "sourceVersion": "binary-search-v1",
-  "lineId": "init",
-  "array": [1, 3, 5, 7, 9],
+  "sourceVersion": "c-v1",
+  "lineId": "init-left",
+  "array": [
+    1,
+    3,
+    5,
+    7,
+    9
+  ],
   "target": 7,
-  "variables": { "left": 0, "right": 4, "mid": null },
+  "variables": {
+    "left": 0,
+    "right": 4,
+    "mid": null
+  },
   "done": false,
   "result": null
 }
