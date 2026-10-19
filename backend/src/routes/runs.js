@@ -6,10 +6,7 @@ import { createRun, getRun } from '../runs/store.js';
 export function handleCreateRun(req, res, body) {
   try {
     // 修复8：限制请求体大小 (10KB)
-    if (body.length > 10240) {
-      return sendError(res, 400, 'INVALID_INPUT', '请求体过大');
-    }
-
+   
     const { array, target } = JSON.parse(body);
 
     // 修复2：使用 Number.isSafeInteger 严格校验

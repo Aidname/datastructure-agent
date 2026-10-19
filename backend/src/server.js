@@ -3,11 +3,8 @@ import { readFile } from 'node:fs/promises';
 import { dirname, extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// 引入我们写好的业务路由
 import { handleCreateRun, handleGetRun, handleGetStep } from './routes/runs.js';
 import { handleGetExercises, handleCheckExercise } from './routes/exercises.js';
-
-
 
 const here = dirname(fileURLToPath(import.meta.url));
 const frontendRoot = resolve(here, '../../frontend');
@@ -18,13 +15,18 @@ function json(response, code, value) {
   response.end(JSON.stringify(value));
 }
 
-// 辅助函数：读取 POST 请求体
+// 修复审查意见：按字节限制请求体大小（10KB）
 async function readBody(request) {
-  let body = '';
+  let size = 0;
+  const chunks = [];
   for await (const chunk of request) {
-    body += chunk;
+    size += chunk.length;
+    if (size > 10240) {
+      throw new Error('BODY_TOO_LARGE');
+    }
+    chunks.push(chunk);
   }
-  return body;
+  return Buffer.concat(chunks).toString('utf8');
 }
 
 const server = createServer(async (request, response) => {
@@ -34,10 +36,10 @@ const server = createServer(async (request, response) => {
 
     // 1. 健康检查
     if (pathname === '/api/health' && method === 'GET') {
-      return json(response, 200, { ok: true, stage: 'scaffold', implemented:  ['static-page', 'health', 'runs', 'exercises'], modelCallsEnabled: false });
+      return json(response, 200, { ok: true, stage: 'scaffold', implemented: ['static-page', 'health', 'runs', 'exercises'], modelCallsEnabled: false });
     }
 
-    // 2. 04 的业务路由
+    // 2. 04 的运行路由
     if (pathname === '/api/algorithms/binary-search/runs' && method === 'POST') {
       const body = await readBody(request);
       return handleCreateRun(request, response, body);
@@ -52,7 +54,8 @@ const server = createServer(async (request, response) => {
     if (runMatch && method === 'GET') {
       return handleGetRun(request, response, runMatch[1]);
     }
-        // 04 的题目与判分路由
+
+    // 3. 04 的题目与判分路由
     if (pathname === '/api/exercises' && method === 'GET') {
       return handleGetExercises(request, response);
     }
@@ -61,19 +64,15 @@ const server = createServer(async (request, response) => {
       return handleCheckExercise(request, response, body);
     }
 
-
-        // 05 的 Agent 接口（降级处理，防止阻塞其他业务）
+    // 4. 05 的 Agent 降级处理
     if (pathname === '/api/agent/explain' && method === 'POST') {
       request.resume();
       return json(response, 503, { error: { code: 'MODEL_NOT_CONFIGURED', message: '模型未配置，不影响算法和判分。' } });
     }
 
-    // 3. 其他尚未实现的计划路由（返回 501）
+    // 5. 其他尚未实现的计划路由
     const plannedRoutes = [
-     // ['POST', /^\/api\/agent\/explain$/, 'M05'],
-      ['GET', /^\/api\/knowledge\/cards$/, 'M06'],
-     // ['GET', /^\/api\/exercises$/, 'M04+M06'],
-      //['POST', /^\/api\/exercises\/check$/, 'M04+M07']
+      ['GET', /^\/api\/knowledge\/cards$/, 'M06']
     ];
 
     const planned = plannedRoutes.find(([m, pattern]) => m === method && pattern.test(pathname));
@@ -82,7 +81,7 @@ const server = createServer(async (request, response) => {
       return json(response, 501, { error: { code: 'NOT_IMPLEMENTED', message: '当前仅为协作骨架，业务功能待实现。', owner: planned[2] } });
     }
 
-    // 4. 静态文件处理等原有逻辑
+    // 6. 静态文件处理
     if (pathname.startsWith('/api/')) return json(response, 404, { error: { code: 'NOT_FOUND', message: '接口不存在。' } });
     if (!['GET', 'HEAD'].includes(method)) return json(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持。' } });
     const file = resolve(frontendRoot, '.' + (pathname === '/' ? '/index.html' : pathname));
@@ -98,6 +97,9 @@ const server = createServer(async (request, response) => {
       throw error;
     }
   } catch (error) {
+    if (error.message === 'BODY_TOO_LARGE') {
+      return json(response, 400, { error: { code: 'INVALID_INPUT', message: '请求体超过 10KB 限制' } });
+    }
     console.error(error);
     json(response, 400, { error: { code: 'INVALID_REQUEST', message: '请求无法处理。' } });
   }

@@ -25,13 +25,17 @@ export function getRun(runId) {
   return run;
 }
 
-// 修复 8：后台定时主动清理过期数据
-// 每分钟扫描一次 Map，把超过 1 小时的 Run 删掉，防止内存泄漏
-setInterval(() => {
+// 后台定时主动清理过期数据
+const cleanupTimer = setInterval(() => {
   const now = Date.now();
   for (const [id, run] of runsStore.entries()) {
     if (now - run.createdAt > RUN_TTL) {
       runsStore.delete(id);
     }
   }
-}, 60 * 1000); 
+}, 60 * 1000);
+
+// 修复审查意见：unref() 确保定时器不会阻止 Node 进程退出
+if (cleanupTimer.unref) {
+  cleanupTimer.unref();
+}
