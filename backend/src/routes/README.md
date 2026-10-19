@@ -1,5 +1,5 @@
 # 业务路由（成员04，Agent handler由05提供）
 
-待实现JSON解析、输入校验、run/题目接口及Agent接入。server.js目前只提供静态页面、health和501占位。
+runs.js 已提供创建/查询run与单步读取；exercises.js 已接06题库、公开字段白名单和程序判分。server.js 负责入口、按字节限制创建/判分请求体、静态文件和health。
 
-沿用统一错误格式，避免公共入口多人并改；变更同步API契约和前端消费者。
+Agent当前固定503 MODEL_NOT_CONFIGURED，知识卡GET仍501 NOT_IMPLEMENTED；模型、状态工具与检索尚未接入。字段、状态码和待实现部分见[API契约](../../../docs/architecture/api-contract.md)。公共后端入口由04整合，变更同步文档与消费者。

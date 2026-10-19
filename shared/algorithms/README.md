@@ -1,5 +1,5 @@
-# 展示代码与行映射（成员04，06核验）
+# 算法与展示代码（成员04，06核对内容）
 
-这里计划保存C/C++风格算法展示代码及稳定lineId映射。当前未放算法实现。
+binarySearch.js 已实现确定性二分查找，导出 generateSteps、SOURCE_VERSION=c-v1、SOURCE_LINES。展示代码为13行 C/C++ 风格片段，由同一文件提供稳定 lineId。HTTP输入校验位于后端路由。
 
-JS引擎、展示代码、题目和讲解采用同一个sourceVersion；排版变化不改变稳定行标识。08独立验证对应关系。
+引擎轨迹与展示源码同版本；内容题目允许用独立 algorithmContractId 标识静态场景，不把 sourceVersion=null 误认为真实run。见[状态契约](../../docs/architecture/trace-contract.md)。01已独立核对，06内容/03播放/02高亮及08交叉验收仍需联调。
