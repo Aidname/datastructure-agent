@@ -1,0 +1,60 @@
+classDiagram
+direction TB
+class AlgorithmRun {
+  runId
+  createdAt
+  sourceVersion
+  sourceLines
+  result
+}
+class Step {
+  stepIndex
+  event
+  lineId
+  array
+  target
+  variables
+  done
+  result
+}
+class KnowledgeCard {
+  id
+  version
+  sourceType
+  verified
+}
+class SourceReference {
+  sourceId
+  chapter
+  pages
+}
+class Exercise {
+  id
+  version
+  type
+  context
+}
+class AnswerRecord {
+  exerciseId
+  exerciseVersion
+  answer
+  correct
+  contextSnapshot
+}
+class LearningRecord {
+  topicId
+  schemaVersion
+}
+class AgentCoordinator
+class RunStateService
+class KnowledgeRetriever
+AlgorithmRun "1" *-- "2..*" Step : immutable snapshots
+KnowledgeCard "0..*" --> "1" SourceReference : source
+Exercise "1" --> "0..*" AnswerRecord : attempts
+LearningRecord "1" o-- "0..*" AnswerRecord : local history
+AnswerRecord "0..*" ..> "0..1" Step : optional run context
+AgentCoordinator ..> RunStateService : read only
+RunStateService ..> AlgorithmRun : lookup runId stepIndex
+AgentCoordinator ..> KnowledgeRetriever : retrieve checked cards
+KnowledgeRetriever ..> KnowledgeCard : evidence
+Exercise ..> KnowledgeCard : sourceRefs
