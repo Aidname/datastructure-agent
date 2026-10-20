@@ -26,6 +26,9 @@ import { createPlayback } from '/src/features/playback/index.js';
 
 ## 3. 最小装配代码
 
+> ⚠️ 顺序很重要：`createPlayback` / `createVisualization` **构造时都不会广播**，
+> 所以装配完必须**自己显式分发第 0 步**（见 §4），不能等第一次 `onStepChange`。
+
 ```js
 // ① 渲染器：只读 run.steps，不计算任何算法结果
 const viz = createVisualization(document.querySelector('#visualization-panel'), {
@@ -43,7 +46,7 @@ const playback = createPlayback({
   onStepChange: ({ runId, stepIndex, step, canPrev, canNext, playing, total }) => {
     viz.showStep(step);                 // ③ 动画跟着走（传 null 会进入明确空态）
     // ④ 在这里把 runId + stepIndex 分发给你自己的代码面板、05、07
-    codePanel.setStep(step);            //   ← 这一步归 02
+    codePanel.setStep(step, { runId, stepIndex, total });  //   ← 这一步归 02
   }
 });
 
@@ -55,6 +58,37 @@ resetBtn.onclick = () => { playback.reset(); viz.playEnterAnimation(); };
 speedSelect.onchange = () => playback.setSpeed(Number(speedSelect.value));
 ```
 
+## 4. 初始分发（第 0 步必须由 02 主动发一次）
+
+`createPlayback` 只在**状态变化**时广播；构造、`createVisualization` 装配都**不会**触发
+`onStepChange`。所以只订阅回调的话，代码面板 / 05 / 07 在用户点第一下之前拿不到任何上下文，
+05 也就无法在"第 1 步就能提问"这个场景下定位。
+
+装配完成后请**显式**分发一次初始快照（`runId` + `stepIndex: 0` + `run.steps[0]`）：
+
+```js
+const first = run.steps[0] ?? null;
+
+// ① 动画
+viz.showStep(first);
+
+// ② 02 自己的代码/变量面板
+codePanel.setStep(first, { runId: run.runId, stepIndex: 0, total: run.steps.length });
+
+// ③ 05 的上下文：给 runId + stepIndex + 这一步快照，不要让它去猜"最近一次回调"
+agent.setContext({ runId: run.runId, stepIndex: 0, step: first });
+
+// ④ 07 的练习上下文同理
+exercises.setContext({ runId: run.runId, stepIndex: 0, step: first });
+```
+
+要点：
+
+- **初始提问不能只依赖"最近一次 onStepChange"**：用户完全可能在点播放之前就问；
+- 05 需要用 `runId + stepIndex` 去服务端取真实步骤（`GET /api/runs/:runId/steps/:stepIndex`），
+  而不是只靠客户端缓存；
+- 换 run 时重复本节的初始化（先 `destroy()` 旧的 `viz` / `playback`），保证新上下文从第 0 步开始。
+
 ## 4. 换 run / 销毁职责（必须照做，否则旧计时器会推进新上下文）
 
 | 时机 | 谁负责 | 做什么 |
@@ -62,7 +96,7 @@ speedSelect.onchange = () => playback.setSpeed(Number(speedSelect.value));
 | 用户改了输入、重新创建 run | **02** | 先 `playback.destroy()` + `viz.destroy()`，再用新 run 重建两者 |
 | 接口失败、清空运行 | **02** | `viz.showStep(null)` 进入明确空态（不抛错），并 `playback.destroy()` |
 | 页面卸载 / 切换模式 | **02** | 两个 `destroy()` 都要调 |
-| 暂停后提问（05） | 02 转发 | 用最近一次 `onStepChange` 的 `{runId, stepIndex}` 定位，不要让 05 自己猜 |
+| 暂停后提问（05） | 02 转发 | 用 `runId + stepIndex`（初始为 §4 的那次显式分发，之后来自 `onStepChange`）定位；不要让 05 依赖"最近一次回调" |
 
 `destroy()` 之后：计时器清零、不再广播、DOM 与事件监听都移除（`getDiagnostics().activeTimers === 0`）。
 
@@ -76,12 +110,15 @@ speedSelect.onchange = () => playback.setSpeed(Number(speedSelect.value));
   事件名 `init / probe / move-left / move-right / found / not-found`。
 - 错误码：`INVALID_INPUT/400`、`RUN_NOT_FOUND/404`、`STEP_OUT_OF_RANGE/400`。
 
+> 契约以 main 上的实际返回为准（本文档只记录实测到的事实：接口已实现、字段如上）。
+> 跨成员确认状态：**C06（02 的挂载点与步骤广播）仍待取得**，本文档是 03 的提案，不是已确认的接口。
+
 ## 6. 边界（03 不做的部分）
 
 - 数组/目标输入、开始分析、加载与校验反馈 → **02**；
 - 代码面板与 `left/right/mid` 变量面板（`null` 显示"未计算"）→ **02**；
-- 把 `runId + stepIndex` 广播给 05/07 → **02**（03 只回调 `onStepChange`）；
-- 步骤辅导真实回答 → **05**（`POST /api/agent/explain` 当前固定 503）；
+- 把 `runId + stepIndex` 广播给 05/07（含 §4 的初始分发）→ **02**（03 只回调 `onStepChange`）；
+- 步骤辅导真实回答与引用链 → **05**（`POST /api/agent/explain` 当前固定 503；06 的卡片已合并，但检索/引用未接入）；
 - 练习题库/判分与本机记录 → **07**。
 
 `frontend/src/features/visualization/dev.html` 与 `dev-morph.html` 是 03 的自测页，**不是**产品入口；里面的代码面板/练习/记录/辅导都是替身，不要当生产代码复用。

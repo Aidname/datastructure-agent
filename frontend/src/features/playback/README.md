@@ -4,7 +4,9 @@
 并在每次状态变化时**恰好广播一次** `onStepChange`。
 
 - 入口：`createPlayback({ runId, steps, intervalMs, onStepChange })`
-  → `{ play, pause, next, prev, reset, setSpeed, getState, getDiagnostics, destroy, subscribe }`
+  → `{ play, pause, next, prev, reset, setSpeed, getState, getDiagnostics, destroy }`
+- **订阅方式只有一种**：创建时传入 `onStepChange`（没有 `subscribe` 方法；本模块也不发全局事件）。
+  创建时**不会**广播一次，见 `../visualization/C02-INTEGRATION.md` 的「初始分发」。
 - 计时器纪律：任何时刻最多一个计时器；`getDiagnostics().activeTimers` 恒为 0 或 1
   （对应规格「快速换输入不出现两套计时器」）；到终点自动停；`destroy()` 后不再广播。
 - 广播载荷：`{ runId, stepIndex, step, canPrev, canNext, playing, total, intervalMs }`

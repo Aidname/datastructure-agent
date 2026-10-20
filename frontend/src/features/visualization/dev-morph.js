@@ -13,8 +13,10 @@
  *   顶栏那枚 24 极径的小标记、切换胶囊的位置/宽度、内容区的横向位移，
  *   都是"目标值一变，弹簧自己追过去"，并按整体速度给一点运动模糊。
  *
- * 数据现在来自 fixtures/*.json（mock）。真实 steps 属 04 的引擎，仍未实现 ——
- * 这里只消费，不自己算轨迹；接真数据时替换 loadFixtures() 即可，其余不用动。
+ * 数据来源（以 main 为准）：优先用真实引擎 POST /api/algorithms/binary-search/runs 返回的 run
+ * （runId / sourceVersion / sourceLines / steps / result），拿不到时才回退 fixtures/*.json 的 mock。
+ * 本页只消费 steps，不自己算轨迹。
+ * 跨成员确认仍待取得：C06（02 的挂载点与步骤广播）在 contract-alignment.md 里仍是"待提案与联调"。
  */
 
 import { describeStep } from './index.js';

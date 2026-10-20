@@ -23,8 +23,9 @@
  *   frontend/src/features/agent/）。本文件只是 03 开发页的演示替身，正式实现时应替换。
  * [before it happens] POST /api/agent/explain 在 main 上仍是占位实现（固定 503 MODEL_NOT_CONFIGURED）；模型未配置，
  *   所以不产生任何回答与费用。
- * [before it happens] 已核验知识卡（06）与检索（05）都还没有，引用区只显示"无已核验引用"，
- *   不编造页码/出处；usage 如实显示"未取得"。
+ * [before it happens] 06 已合并本批知识卡（其 verified 只表示"本批内容检查"，不代表教材页码核验）；
+ *   但 05 的检索 / 引用链 / 真实 usage 还没接入，所以引用区仍显示"无已核验引用"，不编造页码/出处。
+ * [before it happens] C06（02 的挂载点与步骤广播）跨成员确认仍待取得，本文件不假定任何已确认的接口。
  * ==================================================================
  */
 
@@ -147,7 +148,7 @@ export function createAgentPanel(container, { request } = {}) {
 
   const disclaimer = el('p', 'agent-disclaimer',
     '内容由尚未接入的模型或示例模板产生，不构成权威解释；执行轨迹以 04 的引擎输出为准。'
-    + '（面板属 05；当前接口返回 503、模型未配置、知识卡未核验。）');
+    + '（面板属 05；当前接口返回 503、模型未配置、检索与引用链未接入。）');
   composer.append(disclaimer);
   root.append(composer);
 
