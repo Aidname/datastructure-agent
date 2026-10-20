@@ -2,7 +2,12 @@
  * 成员03 开发自测页的【输入工作台替身】（dev-only）
  *
  * 作用：把"数组 / 目标 → 开始分析"这条输入链路的**校验与反馈**做出来，
- *       并真实调用创建 run 的接口（现在返回 501），把真实失败如实显示。
+ *       并真实调用创建 run 的接口（main 上已实现：正常返回 200 + run），把真实结果/失败如实显示。
+ *       成功时会调用传入的 onRun(run) 把 04 产出的 run 交回宿主 —— 这是本替身与宿主的唯一出口。
+ *
+ * ⚠️ 现状：本文件当前**没有被任何开发页引用**（dev.html / dev-morph.html 都用自己的数据入口）。
+ *   保留它只为记录"02 该提供什么"的替身原型；若后续要复用，请按 onRun 回调接管 run 生命周期，
+ *   不要把它当成已接入模块（PR #14 复审整理项）。
  *
  * ================= [02 unsupports] 归属：这是 02 的活，02 还没提供 =================
  * [02 unsupports] 数组/目标输入、开始分析、加载与校验/服务失败反馈、以及"调创建接口拿 run"，
@@ -13,8 +18,8 @@
  * ================= [before it happens] 归属与依赖 =================
  * [before it happens] 输入工作台在正式产品里属【02】（frontend/index.html、app.js、
  *   features/workbench/、services/）。本文件只是 03 开发页的演示替身，正式实现时应替换。
- * [before it happens] 轨迹必须来自【04】的引擎（backend/src/algorithms）。现在该接口返回 501，
- *   所以**任意输入都无法生成真实轨迹**。本文件刻意【不】自己算二分查找轨迹——
+ * [before it happens] 轨迹必须来自 04 的引擎（shared/algorithms/binarySearch.js）。main 上接口已实现
+ *   （POST /api/algorithms/binary-search/runs 正常返回 run）；本文件刻意【不】自己算二分查找轨迹——
  *   契约明令"前端不另算答案、算法轨迹由确定程序产生、不由模型生成"（structure.md 单一执行来源）。
  *   因此合法输入如果命中 fixtures 里的模拟用例，就切到那条模拟轨迹（明确标注 mock）；
  *   否则只如实报告"需要 04 的引擎"，不编造步骤。
@@ -105,10 +110,17 @@ export function matchMockRun(runs = [], array = [], target) {
  * @param {(req: {method: string, path: string, body?: object}) => Promise<{status: number, body: any}>} options.request 注入的请求函数（便于自检时不联网）
  * @param {object[]} [options.mockRuns] 模拟用例，命中时切过去演示
  * @param {(run: object) => void} [options.onRunMatched] 命中模拟用例时回调（切到那条轨迹）
+ * @param {(run: object) => void} [options.onRun] 真实接口创建成功时回调（宿主用它接管 run 生命周期）
  * @param {(result: object) => void} [options.onValid] 校验通过时回调
  * @returns {{setFeedback: Function, getFeedback: Function, getValues: Function, destroy: Function}}
  */
-export function createInputPanel(container, { request, mockRuns = [], onRunMatched = null, onValid = null } = {}) {
+export function createInputPanel(container, {
+  request,
+  mockRuns = [],
+  onRunMatched = null,
+  onRun = null,
+  onValid = null
+} = {}) {
   if (!container) throw new Error('createInputPanel 需要一个容器元素');
 
   const root = el('div', 'inp');
@@ -197,6 +209,7 @@ export function createInputPanel(container, { request, mockRuns = [], onRunMatch
 
     if (response.status >= 200 && response.status < 300 && Array.isArray(response.body?.steps)) {
       setFeedback('ok', `已创建运行 ${response.body.runId}，共 ${response.body.steps.length} 步。`);
+      onRun?.(response.body);          // 把真实 run 交给宿主（换 run 时由宿主 destroy 旧实例）
       return { status: 'created', run: response.body };
     }
 
@@ -205,14 +218,14 @@ export function createInputPanel(container, { request, mockRuns = [], onRunMatch
     const message = response.body?.error?.message ?? '';
     const matched = matchMockRun(mockRuns, parsed.array, parsed.target);
     if (matched) {
-      setFeedback('warn', `接口未就绪（${response.status} ${code}）：04 的引擎尚未实现，无法为这条输入生成真实轨迹。`
+      setFeedback('warn', `接口报错（${response.status} ${code}）${message ? `：${message}` : ''}。`
         + `已切到【模拟数据】${matched.runId} 继续演示（不是真实引擎输出）。`);
       onRunMatched?.(matched);
       return { status: 'mock-fallback', status_http: response.status, code, run: matched };
     }
-    setFeedback('error', `接口未就绪（${response.status} ${code}）${message ? `：${message}` : ''}。`
-      + '这条输入需要 04 的引擎生成轨迹，当前无法演示；已保留你的输入，可稍后重试。');
-    return { status: 'not-implemented', status_http: response.status, code };
+    setFeedback('error', `接口报错（${response.status} ${code}）${message ? `：${message}` : ''}。`
+      + '已保留你的输入，可稍后重试。');
+    return { status: 'request-failed', status_http: response.status, code };
   }
 
   fillBtn.addEventListener('click', fillExample);

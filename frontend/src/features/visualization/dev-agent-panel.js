@@ -5,7 +5,7 @@
  * 底部是圆角输入区 + 圆形发送按钮，输入区下面一行免责说明；三级提示做成输入区上方的 chips。
  *
  * 两条不许破的规矩：
- *   1) **不伪造模型回答**：默认走真实 POST /api/agent/explain（现在 501），如实显示错误，
+ *   1) **不伪造模型回答**：默认走真实 POST /api/agent/explain（main 上固定返回 503 MODEL_NOT_CONFIGURED），如实显示错误，
  *      不产生任何 answer 消息。
  *   2) **示例文本必须显眼标注**：另有一个**默认关闭**的「示例文本（非模型输出）」开关。
  *      只有打开它，才用当前步骤的真实数值套模板生成一段说明，并全程标注"模板生成、非模型输出"。
@@ -21,7 +21,7 @@
  * ================= [before it happens] 归属与依赖 =================
  * [before it happens] 步骤辅导在正式产品里属【05】（backend/src/agent、knowledge、
  *   frontend/src/features/agent/）。本文件只是 03 开发页的演示替身，正式实现时应替换。
- * [before it happens] POST /api/agent/explain 现在返回 501 NOT_IMPLEMENTED；模型未配置，
+ * [before it happens] POST /api/agent/explain 在 main 上仍是占位实现（固定 503 MODEL_NOT_CONFIGURED）；模型未配置，
  *   所以不产生任何回答与费用。
  * [before it happens] 已核验知识卡（06）与检索（05）都还没有，引用区只显示"无已核验引用"，
  *   不编造页码/出处；usage 如实显示"未取得"。
@@ -147,7 +147,7 @@ export function createAgentPanel(container, { request } = {}) {
 
   const disclaimer = el('p', 'agent-disclaimer',
     '内容由尚未接入的模型或示例模板产生，不构成权威解释；执行轨迹以 04 的引擎输出为准。'
-    + '（面板属 05；当前接口返回 501、模型未配置、知识卡未核验。）');
+    + '（面板属 05；当前接口返回 503、模型未配置、知识卡未核验。）');
   composer.append(disclaimer);
   root.append(composer);
 
@@ -249,9 +249,9 @@ export function createAgentPanel(container, { request } = {}) {
     }
 
     const reason = response.status === 501 || code === 'NOT_IMPLEMENTED'
-      ? 'Agent 尚未接入（05 未实现，接口返回 501），当前也没有已核验的知识卡可引用。'
+      ? 'Agent 接口尚未实现（501）。'
       : response.status === 503 || code === 'MODEL_NOT_CONFIGURED'
-        ? '模型未配置（MODEL_NOT_CONFIGURED）。'
+        ? '模型未配置（MODEL_NOT_CONFIGURED，05 尚未接入 provider）。'
         : `本次解释未完成（${response.status} ${code}），可重试。`;
     appendMessage('error', {
       text: `${reason}${detail ? ` 接口说明：${detail}` : ''}`,
@@ -274,7 +274,7 @@ export function createAgentPanel(container, { request } = {}) {
   sampleToggle.addEventListener('click', () => { setSampleMode(!sampleMode); });
 
   appendMessage('system', {
-    text: '步骤辅导窗口（开发替身，DeepSeek 式布局）。真实回答需要 05 的适配与已核验知识卡；当前接口返回 501，'
+    text: '步骤辅导窗口（开发替身，DeepSeek 式布局）。真实回答需要 05 的适配与已核验知识卡；当前接口返回 503 MODEL_NOT_CONFIGURED，'
       + '因此默认只显示真实错误，不编造解释。要演示窗口效果可打开下面的「示例文本」开关（会全程标注非模型输出）。',
     stepIndex: null
   });

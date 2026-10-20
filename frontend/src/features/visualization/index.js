@@ -141,6 +141,10 @@ export function describeTransition(previous, current) {
  * @returns {{cells: HTMLElement[], pointers: Map<string, HTMLElement>}}
  */
 function buildFrame(step, { previous = null, enter = false } = {}) {
+  // 空态（没有 run / 清空运行 / 请求失败后恢复空态）：一个格子都不画，也不碰任何变量。
+  // 02 在"加载前、换输入清空、失败回退"这三种时机都会用 showStep(null)，这里必须安全。
+  if (!step) return { cells: [], pointers: new Map() };
+
   const { array = [], variables = {}, event, result } = step;
   const { left, right, mid } = variables;
   const pointers = new Map();
@@ -372,6 +376,7 @@ export function createVisualization(container, {
   }
 
   // 整帧重画：先清空，再按当前 step 重建。这是回看/空值不残留的关键。
+  // step 为 null 时进入明确空态：格子清空、指针清空、说明与时间轴都回到"无步骤"。
   function render(step, { enter = false } = {}) {
     const reduced = prefersReducedMotion();
     const before = enter ? null : measurePointers(previousPointers);
@@ -389,6 +394,7 @@ export function createVisualization(container, {
 
     previousStep = step ?? null;
     previousPointers = frame.pointers;
+    root.dataset.empty = step ? 'false' : 'true';
   }
 
   function showStep(step) {

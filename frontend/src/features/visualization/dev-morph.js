@@ -578,6 +578,13 @@ function bindRun(run, { log = true } = {}) {
   $('#code-version').textContent = `${run.sourceVersion || 'sourceVersion —'} · `
     + `${state.codeLines.length} 行 · ${run.sourceLines.length ? 'run.sourceLines（main 接口）' : 'fixtures/mock-source-lines.json（mock）'}`;
 
+  // 数据来源徽标要随选中的 run 变（真实接口 / mock），不能写死（PR #14 复审整理项）
+  const badge = $('#mode-badge');
+  if (badge) {
+    badge.textContent = run.fromApi ? `真实引擎 ${run.sourceVersion || ''}`.trim() : 'mock 数据';
+    badge.dataset.source = run.fromApi ? 'api' : 'mock';
+  }
+
   // 可视化窗口：视口 / 时间轴 / 本步解释都是它自己的，这里只把宿主与回调给它
   state.vizWindow = createVizWindow($('#vizwin-host'), {
     runs: state.runs,
@@ -1085,6 +1092,8 @@ function wireEvents() {
   document.addEventListener('keydown', (event) => {
     const tag = (event.target.tagName || '').toLowerCase();
     if (['input', 'select', 'textarea'].includes(tag)) return;
+    // 局部处理器（时间轴 / 窗口）已经处理过的按键不再重复执行一次（PR #14 复审问题 1）
+    if (event.defaultPrevented) return;
 
     const order = Object.keys(VIEW_META);
     if (['1', '2', '3', '4', '5'].includes(event.key)) {

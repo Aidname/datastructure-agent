@@ -126,6 +126,11 @@ export function createVizWindow(host, {
   root.innerHTML = TEMPLATE;
   host.append(root);
 
+  // 防御：若上一个窗口异常销毁、body 上残留了全屏类，这里兜一次，保证"新窗口不是全屏"
+  if (!document.querySelector('.vizwin[data-full="true"]')) {
+    document.body.classList.remove('is-viz-full');
+  }
+
   const $ = (selector) => root.querySelector(selector);
   const vizHost = $('[data-viz-scene]');
   const explainHost = $('[data-explain-host]');
@@ -257,6 +262,8 @@ export function createVizWindow(host, {
   /* 全屏：整个窗口铺满屏幕；外壳（标题栏/时间轴）改用页面同色的半透明，画布仍保持深色。
      全屏会盖住顶栏与分区胶囊，所以标题栏留「退出全屏」，并且 Esc 也能退。 */
   const fullBtn = $('[data-viz-full]');
+  let fitTimer = null;
+
   function setFull(on) {
     root.dataset.full = on ? 'true' : 'false';
     // 全屏时页面里那层带 transform 的容器必须摘掉：祖先有 transform 时 position:fixed 会退化成相对定位
@@ -270,7 +277,9 @@ export function createVizWindow(host, {
     }
     if (fullBtn) fullBtn.textContent = on ? '退出全屏' : '全屏';
     requestAnimationFrame(fitView);
-    setTimeout(fitView, 260);   // 过渡结束后再取一次景
+    // 延迟取景必须自己管住：窗口被销毁后这个回调还会跑，所以存住句柄、destroy 时清掉
+    if (fitTimer) clearTimeout(fitTimer);
+    fitTimer = setTimeout(() => { fitTimer = null; fitView(); }, 260);
   }
   fullBtn.addEventListener('click', () => setFull(root.dataset.full !== 'true'));
   const onEsc = (event) => {
@@ -323,10 +332,12 @@ export function createVizWindow(host, {
   }
   ruler.addEventListener('pointerdown', seekFromEvent);
   ruler.addEventListener('keydown', (event) => {
-    if (event.key === 'ArrowLeft') { event.preventDefault(); onSeek?.(Math.max(0, state.stepIndex - 1)); }
-    if (event.key === 'ArrowRight') { event.preventDefault(); onSeek?.(Math.min(state.total - 1, state.stepIndex + 1)); }
-    if (event.key === 'Home') { event.preventDefault(); onSeek?.(0); }
-    if (event.key === 'End') { event.preventDefault(); onSeek?.(state.total - 1); }
+    // 时间轴自己处理左右/Home/End 之后必须阻止冒泡：
+    // 否则事件会继续冒到 document，宿主的全局快捷键再执行一次 next/prev，一次按键跳过两步（PR #14 复审问题 1）。
+    if (event.key === 'ArrowLeft') { event.preventDefault(); event.stopPropagation(); onSeek?.(Math.max(0, state.stepIndex - 1)); return; }
+    if (event.key === 'ArrowRight') { event.preventDefault(); event.stopPropagation(); onSeek?.(Math.min(state.total - 1, state.stepIndex + 1)); return; }
+    if (event.key === 'Home') { event.preventDefault(); event.stopPropagation(); onSeek?.(0); return; }
+    if (event.key === 'End') { event.preventDefault(); event.stopPropagation(); onSeek?.(state.total - 1); }
   });
 
   transport.addEventListener('click', (event) => {
@@ -373,6 +384,10 @@ export function createVizWindow(host, {
     destroy: () => {
       window.removeEventListener('keydown', onHomeKey);
       window.removeEventListener('keydown', onEsc);
+      // 销毁前必须把"全屏"这个页面级状态收干净（PR #14 复审问题 2）：
+      // 否则换 run 重建窗口后 body 上仍留着 is-viz-full，panel/panels 的 transform 会被全屏 CSS 压住。
+      if (root.dataset.full === 'true' || document.body.classList.contains('is-viz-full')) setFull(false);
+      if (fitTimer) { clearTimeout(fitTimer); fitTimer = null; }
       viz?.destroy();
       root.remove();
     }
