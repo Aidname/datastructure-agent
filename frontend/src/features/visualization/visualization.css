@@ -1,0 +1,466 @@
+/*
+ * 成员03 · 动画样式（主责路径 frontend/src/features/visualization/visualization.css）
+ *
+ * 只作用于本模块的 .bsviz 容器，不改 02 的 frontend/src/styles/base.css。
+ * 颜色只是辅助：指针一律带 L / R / M 文字，去色后仍可辨认（规格要求"不能只用颜色区分"）。
+ *
+ * 主题化：所有颜色都收敛成 .bsviz 上的 --viz-* 自定义属性，默认值是【浅色】，
+ * 与 02 现在的浅色页面一致；宿主（例如 03 的深色开发页）只要覆写这些变量就能换主题，
+ * 不需要改本文件。可覆写的变量见 README。
+ *
+ * 为什么用 keyframes 而不是 transition：
+ *   03 每步整帧重画（为了"回看无残留"），节点会被重建，transition 无法跨步补间。
+ *   所以"本帧角色"用 keyframes 重放；指针的跨格移动由 JS 做 FLIP（见 index.js）。
+ *   所有 keyframes 的终态都等于该元素稳定态的值（用 --cell-opacity / --cell-bg 承接），
+ *   因此动画结束不会把"已排除"的格子错误地变回实心。
+ */
+
+.bsviz {
+  /* ---------- 主题变量（浅色默认；宿主可覆写） ---------- */
+  --viz-text: #172033;
+  --viz-font: system-ui, sans-serif;
+
+  --viz-legend-bg: #ffffff;
+  --viz-legend-border: #c7d0de;
+  --viz-legend-text: #444455;
+  --viz-legend-range-bg: #eef4ff;
+  --viz-legend-range-border: #3b6fbf;
+
+  --viz-cell-bg: #ffffff;
+  --viz-cell-border: #c7d0de;
+  --viz-index-text: #5a6678;
+  --viz-range-bg: #eef4ff;
+  --viz-range-edge: #3b6fbf;
+  --viz-range-flash: #cfe0ff;
+  --viz-mid-edge: #0a6b4a;
+  --viz-mid-ring: #b6e2d0;
+  --viz-found-bg: #dff5e6;
+  --viz-found-edge: #0a6b4a;
+
+  --viz-ptr-l-fg: #0b5cad;
+  --viz-ptr-l-bg: #e7f1fd;
+  --viz-ptr-r-fg: #8a4b00;
+  --viz-ptr-r-bg: #fdf1e0;
+  --viz-ptr-m-fg: #0a6b4a;
+  --viz-ptr-m-bg: #e6f6ef;
+
+  --viz-empty-bg: #fbfcfe;
+  --viz-empty-border: #c7d0de;
+  --viz-empty-text: #5a6678;
+
+  --viz-caption-bg: #f7f9fc;
+  --viz-caption-edge: #3b6fbf;
+  --viz-caption-text: #2b3648;
+  --viz-caption-found-bg: #e9f8ef;
+  --viz-caption-found-edge: #0a6b4a;
+  --viz-caption-found-text: #0a4c36;
+  --viz-caption-muted-bg: #f6f7f9;
+  --viz-caption-muted-edge: #8a93a5;
+  --viz-caption-muted-text: #46505f;
+
+  --viz-status-bg: #f1f4f9;
+  --viz-status-text: #172033;
+
+  --viz-explain-bg: #ffffff;
+  --viz-explain-border: #c7d0de;
+  --viz-explain-head-bg: #eef2f8;
+  --viz-explain-head-text: #46505f;
+
+  --viz-dot-bg: #ffffff;
+  --viz-dot-border: #c7d0de;
+  --viz-dot-text: #5a6678;
+  --viz-dot-done-bg: #e3ecfb;
+  --viz-dot-done-border: #3b6fbf;
+  --viz-dot-done-text: #234b8c;
+  --viz-dot-cur-bg: #3b6fbf;
+  --viz-dot-cur-border: #234b8c;
+  --viz-dot-cur-text: #ffffff;
+  --viz-dot-ring: rgba(59, 111, 191, 0.45);
+
+  font-variant-numeric: tabular-nums;
+  color: var(--viz-text);
+  font-family: var(--viz-font);
+}
+
+/* ---------------- 图例 ---------------- */
+.bsviz-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 10px;
+  font: 12px/18px var(--viz-font);
+}
+
+.bsviz-legend-item {
+  padding: 3px 9px;
+  border: 1px solid var(--viz-legend-border);
+  border-radius: 999px;
+  background: var(--viz-legend-bg);
+  color: var(--viz-legend-text);
+}
+
+.bsviz-legend-item.is-l {
+  color: var(--viz-ptr-l-fg);
+  border-color: var(--viz-ptr-l-fg);
+  background: var(--viz-ptr-l-bg);
+}
+
+.bsviz-legend-item.is-r {
+  color: var(--viz-ptr-r-fg);
+  border-color: var(--viz-ptr-r-fg);
+  background: var(--viz-ptr-r-bg);
+}
+
+.bsviz-legend-item.is-m {
+  color: var(--viz-ptr-m-fg);
+  border-color: var(--viz-ptr-m-fg);
+  background: var(--viz-ptr-m-bg);
+}
+
+.bsviz-legend-item.is-range-chip {
+  background: var(--viz-legend-range-bg);
+  border-color: var(--viz-legend-range-border);
+}
+
+.bsviz-legend-item.is-dim-chip {
+  opacity: 0.5;
+  filter: grayscale(0.6);
+}
+
+/* ---------------- 数组格子 ---------------- */
+/* "科普视频"取向：格子放大、整体居中，让数组成为画面主体 */
+.bsviz-track {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 12px;
+  align-items: flex-end;
+  justify-content: center;
+  overflow-x: auto;
+  padding: 12px 6px 8px;
+}
+
+.bsviz-cell {
+  /* 稳定态值放在变量里，keyframes 的终态引用它们，动画结束不会串味 */
+  --cell-opacity: 1;
+  --cell-bg: var(--viz-cell-bg);
+  flex: 0 0 auto;
+  width: 96px;
+  padding: 8px 0 6px;
+  text-align: center;
+  background: var(--cell-bg);
+  opacity: var(--cell-opacity);
+  border: 1px solid var(--viz-cell-border);
+  border-radius: 10px;
+}
+
+/* 指针标签行：固定两行，保证高度稳定、步骤切换不抖动 */
+.bsviz-ptrs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 48px;
+}
+
+.bsviz-ptr-row {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  min-height: 21px;
+}
+
+.bsviz-ptr {
+  font: 600 13px/21px var(--viz-font);
+  padding: 0 8px;
+  border: 1px solid;
+  border-radius: 11px;
+  will-change: transform;
+  /* 注意：这里刻意【不】写 animation。
+     指针节点每步都会重建，如果默认就播"出现"动效，L/R/M 会在每一步都闪一次。
+     "出现"动画只在逻辑上真的新出现时挂 .bsviz-ptr-appear（见下）；持续存在的指针
+     只靠 FLIP 滑动位置。 */
+}
+
+.bsviz-ptr-left {
+  color: var(--viz-ptr-l-fg);
+  border-color: var(--viz-ptr-l-fg);
+  background: var(--viz-ptr-l-bg);
+}
+
+.bsviz-ptr-right {
+  color: var(--viz-ptr-r-fg);
+  border-color: var(--viz-ptr-r-fg);
+  background: var(--viz-ptr-r-bg);
+}
+
+.bsviz-ptr-mid {
+  color: var(--viz-ptr-m-fg);
+  border-color: var(--viz-ptr-m-fg);
+  background: var(--viz-ptr-m-bg);
+}
+
+.bsviz-value {
+  font: 700 26px/34px var(--viz-font);
+}
+
+.bsviz-idx {
+  font: 13px/20px var(--viz-font);
+  color: var(--viz-index-text);
+}
+
+/* 当前搜索区间：背景 + 两端描边 */
+.bsviz-cell.is-in-range {
+  --cell-bg: var(--viz-range-bg);
+}
+
+.bsviz-cell.is-range-start {
+  border-left: 3px solid var(--viz-range-edge);
+}
+
+.bsviz-cell.is-range-end {
+  border-right: 3px solid var(--viz-range-edge);
+}
+
+/* 被排除的格子变淡（第3步下标0～2必须落在这一类） */
+.bsviz-cell.is-excluded {
+  --cell-opacity: 0.35;
+  filter: grayscale(0.6);
+}
+
+/* 当前中点：描边强调（M 标签只读 step.variables.mid，为 null 时不渲染） */
+.bsviz-cell.is-mid {
+  border-color: var(--viz-mid-edge);
+  box-shadow: inset 0 0 0 2px var(--viz-mid-ring);
+}
+
+/* 命中：只有 event=found 的 result 格才加这个类；未找到不加任何高亮 */
+.bsviz-cell.is-found {
+  --cell-bg: var(--viz-found-bg);
+  border-color: var(--viz-found-edge);
+}
+
+.bsviz-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 100%;
+  min-height: 88px;
+  padding: 0 12px;
+  border: 1px dashed var(--viz-empty-border);
+  border-radius: 8px;
+  color: var(--viz-empty-text);
+  background: var(--viz-empty-bg);
+  animation: bsviz-enter 320ms cubic-bezier(.22, .68, .32, 1) both;
+}
+
+/* ---------------- 本步解释面板（原"上一条转场说明 + 下一条状态行"合并） ---------------- */
+.bsviz-explain {
+  margin: 10px 4px 0;
+  background: var(--viz-explain-bg);
+  border: 1px solid var(--viz-explain-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.bsviz-explain-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  background: var(--viz-explain-head-bg);
+  color: var(--viz-explain-head-text);
+  font: 600 12px/18px var(--viz-font);
+}
+
+.bsviz-explain-title { flex: 1 1 auto; }
+
+.bsviz-explain-toggle {
+  background: none;
+  border: 1px solid var(--viz-explain-border);
+  border-radius: 4px;
+  padding: 0 6px;
+  color: inherit;
+  font: 11px/16px var(--viz-font);
+  cursor: pointer;
+}
+
+.bsviz-explain[data-collapsed="true"] .bsviz-caption,
+.bsviz-explain[data-collapsed="true"] .bsviz-status { display: none; }
+
+/* 面板内两条解释紧贴排列，去掉各自的外边距与圆角 */
+.bsviz-explain .bsviz-caption { margin: 0; border-radius: 0; }
+.bsviz-explain .bsviz-status { margin: 0; border-radius: 0; }
+
+/* ---------------- 转场说明 ---------------- */
+.bsviz-caption {
+  margin: 8px 4px 0;
+  padding: 8px 10px 8px 12px;
+  font: 13px/20px var(--viz-font);
+  background: var(--viz-caption-bg);
+  border-left: 3px solid var(--viz-caption-edge);
+  border-radius: 0 6px 6px 0;
+  color: var(--viz-caption-text);
+}
+
+.bsviz-caption[data-kind="found"] {
+  background: var(--viz-caption-found-bg);
+  border-left-color: var(--viz-caption-found-edge);
+  color: var(--viz-caption-found-text);
+}
+
+.bsviz-caption[data-kind="not-found"] {
+  background: var(--viz-caption-muted-bg);
+  border-left-color: var(--viz-caption-muted-edge);
+  color: var(--viz-caption-muted-text);
+}
+
+.bsviz-caption[data-kind="empty"] {
+  background: var(--viz-caption-muted-bg);
+  border-left-color: var(--viz-caption-muted-edge);
+  color: var(--viz-caption-muted-text);
+}
+
+/* ---------------- 步骤时间轴 ---------------- */
+.bsviz-timeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 4px 0;
+}
+
+.bsviz-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--viz-dot-border);
+  background: var(--viz-dot-bg);
+  color: var(--viz-dot-text);
+  font: 600 12px/1 var(--viz-font);
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease, transform 200ms ease;
+}
+
+.bsviz-dot.is-done {
+  background: var(--viz-dot-done-bg);
+  border-color: var(--viz-dot-done-border);
+  color: var(--viz-dot-done-text);
+}
+
+.bsviz-dot.is-current {
+  background: var(--viz-dot-cur-bg);
+  border-color: var(--viz-dot-cur-border);
+  color: var(--viz-dot-cur-text);
+  transform: scale(1.14);
+  animation: bsviz-dot-pulse 1.1s ease-in-out infinite;
+}
+
+.bsviz-dot.is-upcoming {
+  opacity: 0.7;
+}
+
+.bsviz-status {
+  margin: 10px 4px 0;
+  padding: 8px 10px;
+  font: 13px/20px var(--viz-font);
+  background: var(--viz-status-bg);
+  color: var(--viz-status-text);
+  border-radius: 6px;
+}
+
+/* ---------------- keyframes ---------------- */
+/* 入场：错峰淡入上浮。终态引用 --cell-opacity，所以"入场时就被排除"的格子照样是淡的 */
+@keyframes bsviz-enter {
+  from { opacity: 0; transform: translateY(10px) scale(.96); }
+  to { opacity: var(--cell-opacity, 1); transform: none; }
+}
+
+/* 本帧被排除：由实心淡下去（终态 = 该格自己的稳定透明度） */
+@keyframes bsviz-dim {
+  from { opacity: 1; filter: grayscale(0); }
+  to { opacity: var(--cell-opacity, 1); filter: grayscale(0.6); }
+}
+
+/* 回看时回到区间：由淡复原 */
+@keyframes bsviz-restore {
+  from { opacity: 0.35; transform: scale(.94); }
+  to { opacity: var(--cell-opacity, 1); transform: none; }
+}
+
+/* 新中点：脉冲一次 */
+@keyframes bsviz-mid-pulse {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.1); }
+  100% { transform: none; }
+}
+
+/* 命中：弹跳 + 提亮 */
+@keyframes bsviz-found-pop {
+  0% { transform: scale(1); filter: brightness(1); }
+  35% { transform: scale(1.16); filter: brightness(1.22); }
+  70% { transform: scale(.98); filter: brightness(1.05); }
+  100% { transform: none; filter: none; }
+}
+
+/* 区间端点变化：底色闪一下，终态回到该格自己的底色 */
+@keyframes bsviz-range-flash {
+  from { background-color: var(--viz-range-flash); }
+  to { background-color: var(--cell-bg); }
+}
+
+/* 指针出现：只动透明度与亮度，位移交给 FLIP */
+@keyframes bsviz-ptr-in {
+  from { opacity: 0; filter: brightness(1.5); }
+  to { opacity: 1; filter: none; }
+}
+
+/* 当前步的时间轴圆点：呼吸 */
+@keyframes bsviz-dot-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--viz-dot-ring); }
+  50% { box-shadow: 0 0 0 6px rgba(0, 0, 0, 0); }
+}
+
+/* 错峰档位：8 档，超出部分循环 */
+.bsviz-enter-0 { animation: bsviz-enter 320ms cubic-bezier(.22, .68, .32, 1) 0ms both; }
+.bsviz-enter-1 { animation: bsviz-enter 320ms cubic-bezier(.22, .68, .32, 1) 45ms both; }
+.bsviz-enter-2 { animation: bsviz-enter 320ms cubic-bezier(.22, .68, .32, 1) 90ms both; }
+.bsviz-enter-3 { animation: bsviz-enter 320ms cubic-bezier(.22, .68, .32, 1) 135ms both; }
+.bsviz-enter-4 { animation: bsviz-enter 320ms cubic-bezier(.22, .68, .32, 1) 180ms both; }
+.bsviz-enter-5 { animation: bsviz-enter 320ms cubic-bezier(.22, .68, .32, 1) 225ms both; }
+.bsviz-enter-6 { animation: bsviz-enter 320ms cubic-bezier(.22, .68, .32, 1) 270ms both; }
+.bsviz-enter-7 { animation: bsviz-enter 320ms cubic-bezier(.22, .68, .32, 1) 315ms both; }
+
+/* "出现"：只给逻辑上新出现的指针（首帧的 L/R，或 mid 由 null 变为有值时的 M）。
+   只动透明度与亮度，位移交给 FLIP；持续存在的指针不挂这个类，所以不会每步闪一次。 */
+.bsviz-ptr.bsviz-ptr-appear {
+  animation: bsviz-ptr-in 380ms ease-out;
+}
+
+/* 新算出的中点：M 标签"出现" + 脉冲。两条 animation 必须写在同一条简写里
+   （CSS 不允许两个类各写一个 animation 简写后叠加，后面的会整个覆盖前面的）。 */
+.bsviz-ptr.is-new-mid {
+  animation: bsviz-mid-pulse 440ms ease-out 140ms;
+}
+
+.bsviz-ptr.bsviz-ptr-appear.is-new-mid {
+  animation: bsviz-ptr-in 380ms ease-out, bsviz-mid-pulse 440ms ease-out 140ms;
+}
+
+/* 转场动效（"both" 让终态停在稳定态，不会闪回）。
+   这些类刻意保持互斥——一个元素同时只能生效一条 animation 简写。
+   中点脉冲不在这里，而是挂在 M 标签上（见 .bsviz-ptr.is-new-mid）。 */
+.bsviz-anim-dim { animation: bsviz-dim 260ms ease-out both; }
+.bsviz-anim-restore { animation: bsviz-restore 300ms cubic-bezier(.22, .68, .32, 1) both; }
+.bsviz-anim-found { animation: bsviz-found-pop 540ms cubic-bezier(.22, .68, .32, 1) both; }
+.bsviz-anim-range { animation: bsviz-range-flash 320ms ease-out both; }
+
+/* 无障碍：用户要求减少动态效果时，只保留极短过渡 */
+@media (prefers-reduced-motion: reduce) {
+  .bsviz *,
+  .bsviz *::before,
+  .bsviz *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
