@@ -2,6 +2,12 @@
 
 建议分支：`docs/m09-requirements-prototype`。主责：`docs/product/`、`docs/prototype/`、`docs/architecture/diagrams/`。
 
+## 当前交付（2026-10-20）
+
+王元豪（102401629 / hsjjsjajja）已随[PR #12](https://github.com/tw1l1ghtcc/datastructure-agent/pull/12)完成登记并合并可审阅设计：需求v0.9、五页交互原型、标志与截图、思维导图/领域模型、40项覆盖规划。入口见[需求](../../product/requirements.md)、[原型](../../prototype/README.md)、[检查与待补清单](../../product/review-20261020.md)。
+
+下一步是跨成员复核、补真实调研/验收依据及课程规范版本，不重复从空模板开始。设计合并不表示所有成员确认或生产功能完成。下列内容保留为任务交付要求。
+
 ## 具体成果
 
 1. 原型包含课程目录、算法工作台、Agent辅导、练习和错题记录；正式版原型与本次实际样例分开标识。
