@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import { handleCreateRun, handleGetRun, handleGetStep } from './routes/runs.js';
 import { handleGetExercises, handleCheckExercise } from './routes/exercises.js';
+import { handleAgentExplain } from './agent/explain.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const frontendRoot = resolve(here, '../../frontend');
@@ -36,7 +37,7 @@ const server = createServer(async (request, response) => {
 
     // 1. 健康检查
     if (pathname === '/api/health' && method === 'GET') {
-      return json(response, 200, { ok: true, stage: 'scaffold', implemented: ['static-page', 'health', 'runs', 'exercises'], modelCallsEnabled: false });
+      return json(response, 200, { ok: true, stage: 'scaffold', implemented: ['static-page', 'health', 'runs', 'exercises', 'agent-explain'], modelCallsEnabled: false });
     }
 
     // 2. 04 的运行路由
@@ -64,10 +65,12 @@ const server = createServer(async (request, response) => {
       return handleCheckExercise(request, response, body);
     }
 
-    // 4. 05 的 Agent 降级处理
+    // 4. 05 的 Agent 解释接口
     if (pathname === '/api/agent/explain' && method === 'POST') {
-      request.resume();
-      return json(response, 503, { error: { code: 'MODEL_NOT_CONFIGURED', message: '模型未配置，不影响算法和判分。' } });
+      const body = await readBody(request);
+      const parsed = JSON.parse(body);
+      const result = await handleAgentExplain(parsed);
+      return json(response, 200, result);
     }
 
     // 5. 其他尚未实现的计划路由
