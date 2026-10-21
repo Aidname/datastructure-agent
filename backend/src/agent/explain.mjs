@@ -1,7 +1,7 @@
 // 成员05：Agent Mock解释器
 // 修复P1：读04服务端真实run/step，忽略客户端stepState
 // 修复P2：非法请求返回400/404统一error结构，hintLevel递进，不编造引用
-// 修复P2-3：从06 cards.json动态读取知识卡，不硬编码
+// 修复P2-3：从06 content/knowledge/cards.json动态读取知识卡
 // Mock需 AGENT_MOCK=true 显式开启，否则返回503
 
 import { getRun } from '../runs/store.js';
@@ -9,10 +9,10 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
-// 读取06知识卡片（相对路径：从 backend/src/agent/ 到 content/cards.json）
+// 读取06知识卡片
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const cardsPath = join(__dirname, '..', '..', '..', 'content', 'cards.json');
+const cardsPath = join(__dirname, '..', '..', '..', 'content', 'knowledge', 'cards.json');
 
 let cardMap = {};
 try {
@@ -34,7 +34,6 @@ const eventCardMap = {
   'not-found': 'bs-k06'
 };
 
-// hintLevel递进生成（不编造引用）
 function generateHint(hintLevel, step, question) {
   const event = step.event || 'probe';
   const cardId = eventCardMap[event] || 'bs-k03';
@@ -46,18 +45,15 @@ function generateHint(hintLevel, step, question) {
   const mid = vars.mid ?? '?';
   const stepIdx = step.stepIndex ?? '?';
 
-  // hintLevel 1: 仅当前步骤状态
   if (hintLevel <= 1) {
     return `步骤${stepIdx}（${event}）：当前区间[${left},${right}]，mid=${mid}。${cardText}`;
   }
 
-  // hintLevel 2: 加上问题针对性解释
   if (hintLevel <= 2) {
     return `步骤${stepIdx}（${event}）：当前区间[${left},${right}]，mid=${mid}。${cardText} 针对你的问题"${question}"，建议结合当前步骤的变量变化理解：` +
       `mid=${mid}对应值${step.array && mid >= 0 ? step.array[mid] : 'N/A'}，与target=${step.target}比较决定下一步走向。`;
   }
 
-  // hintLevel 3: 完整辅导，含知识卡引用和下一步预判
   let nextHint = '';
   if (!step.done) {
     if (event === 'move-left' || event === 'move-right' || event === 'init') {
@@ -82,7 +78,6 @@ function generateHint(hintLevel, step, question) {
 }
 
 export async function handleAgentExplain(reqBody) {
-  // ---- P2: 非法请求校验 ----
   if (!reqBody || typeof reqBody !== 'object') {
     return {
       status: 400,
@@ -113,7 +108,6 @@ export async function handleAgentExplain(reqBody) {
     };
   }
 
-  // ---- P1: 读04服务端真实run，忽略客户端stepState ----
   const run = getRun(runId);
   if (!run) {
     return {
@@ -130,12 +124,9 @@ export async function handleAgentExplain(reqBody) {
   }
 
   const realStep = run.steps[stepIndex];
-
-  // ---- P2: hintLevel递进（默认1）----
   const level = Number.isInteger(hintLevel) && hintLevel >= 1 && hintLevel <= 3 ? hintLevel : 1;
   const answer = generateHint(level, realStep, question);
 
-  // ---- P2-3: 引用从06 cards.json真实数据取出 ----
   const cardId = eventCardMap[realStep.event] || 'bs-k03';
   const card = cardMap[cardId];
 
