@@ -21,7 +21,7 @@
 | 02 蒋书瑞 | 工作台、前端入口 | 已登记；未见合并业务实现 | 登记[#6](https://github.com/tw1l1ghtcc/datastructure-agent/pull/6) | 接04运行接口及源码，整合03/05/07前端模块 |
 | 03 冯玄 | 动画与播放 | 已登记；未见合并业务实现 | 登记[#1](https://github.com/tw1l1ghtcc/datastructure-agent/pull/1) | 可直接用真实steps开发播放/回看，与02确认模块接口 |
 | 04 林为峰 | 引擎、run、后端入口 | 后端模块已合并并通过01独立检查，待消费者联调；Agent handler接入未完成 | [#10](https://github.com/tw1l1ghtcc/datastructure-agent/pull/10) | 配合02/03/05/07联调，确认容量策略及05状态工具接入 |
-| 05 你的姓名 | Agent、检索与聊天 | 已交付本地 Mock Agent：explain.mjs 解释器 + server.js 路由接入；/api/agent/explain 返回 mock 解释（cost=0, model=mock），替代原 503 占位 |  | 接04真实状态与06内容，落实引用、失败处理、预算和真实用量 |
+| 05 郑瀚| Agent、检索与聊天 | 已交付本地 Mock Agent：explain.mjs 解释器 + server.js 路由接入；/api/agent/explain 返回 mock 解释（cost=0, model=mock），替代原 503 占位 | [#15](https://github.com/tw1l1ghtcc/datastructure-agent/pull/15) | 接04真实状态与06内容，落实引用、失败处理、预算和真实用量 |
 | 06 秦文昊 | 知识与题目 | 内容已合并，04读题/判分通过；其余接入及交叉验收待完成 | [#7](https://github.com/tw1l1ghtcc/datastructure-agent/pull/7)、[接入说明](../../content/exercises/HANDOFF.md) | 配合05检索、07练习、08复核；复核09已交40项覆盖与动画规划 |
 | 07 吴圣洲 | 练习记录与真实调研 | 已登记；未见合并业务或调研成果 | 登记[#9](https://github.com/tw1l1ghtcc/datastructure-agent/pull/9) | 接题库/判分，保存题目版本与本机记录，补真实访谈/试用证据 |
 | 08 乔震宇 | 测试与效果对比 | 已登记；未见本人提交的业务测试/效果验收成果 | 登记[#4](https://github.com/tw1l1ghtcc/datastructure-agent/pull/4)、[#5](https://github.com/tw1l1ghtcc/datastructure-agent/pull/5) | 独立复核04/06，验收联动并组织真实模型三案例对比 |
