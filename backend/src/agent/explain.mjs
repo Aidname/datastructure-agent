@@ -1,9 +1,29 @@
 // 成员05：Agent Mock解释器
 // 修复P1：读04服务端真实run/step，忽略客户端stepState
 // 修复P2：非法请求返回400/404统一error结构，hintLevel递进，不编造引用
+// 修复P2-3：从06 cards.json动态读取知识卡，不硬编码
 // Mock需 AGENT_MOCK=true 显式开启，否则返回503
 
 import { getRun } from '../runs/store.js';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+// 读取06知识卡片（相对路径：从 backend/src/agent/ 到 content/cards.json）
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const cardsPath = join(__dirname, '..', '..', '..', 'content', 'cards.json');
+
+let cardMap = {};
+try {
+  const cardsRaw = readFileSync(cardsPath, 'utf-8');
+  const cards = JSON.parse(cardsRaw);
+  for (const card of cards) {
+    cardMap[card.id] = card;
+  }
+} catch (err) {
+  console.error('[Agent Mock] 无法加载 cards.json，将使用空卡片映射:', err.message);
+}
 
 const eventCardMap = {
   'init': 'bs-k01',
@@ -14,24 +34,12 @@ const eventCardMap = {
   'not-found': 'bs-k06'
 };
 
-const cardContents = {
-  'bs-k01': '本样例要求数组按非递减顺序排列，二分查找利用有序性排除一半候选区间。',
-  'bs-k02': '当前候选范围是闭区间[left,right]，初始化为left=0、right=n-1。',
-  'bs-k03': 'mid=left+floor((right-left)/2)，算出的是下标，A[mid]才是中点值。',
-  'bs-k04': '当A[mid]<target时，排除[left,mid]，令left=mid+1。',
-  'bs-k05': '当A[mid]>target时，排除[mid,right]，令right=mid-1。',
-  'bs-k06': '当left>right时区间为空，应结束并返回-1。',
-  'bs-k07': '空数组直接结束并返回-1，单元素仍需比较一次。',
-  'bs-k08': '本项目采用中点值相等就返回mid的版本，重复值允许返回实际命中的位置。',
-  'bs-k09': '最坏时间复杂度O(log n)，最好一次比较命中O(1)。',
-  'bs-k10': '初始化及更新边界后mid=null，表示当前轮中点尚未计算。'
-};
-
 // hintLevel递进生成（不编造引用）
 function generateHint(hintLevel, step, question) {
   const event = step.event || 'probe';
   const cardId = eventCardMap[event] || 'bs-k03';
-  const cardText = cardContents[cardId] || '';
+  const card = cardMap[cardId];
+  const cardText = card ? card.content : '';
   const vars = step.variables || {};
   const left = vars.left ?? '?';
   const right = vars.right ?? '?';
@@ -127,8 +135,10 @@ export async function handleAgentExplain(reqBody) {
   const level = Number.isInteger(hintLevel) && hintLevel >= 1 && hintLevel <= 3 ? hintLevel : 1;
   const answer = generateHint(level, realStep, question);
 
-  // ---- 引用：基于真实step.event映射，不编造 ----
+  // ---- P2-3: 引用从06 cards.json真实数据取出 ----
   const cardId = eventCardMap[realStep.event] || 'bs-k03';
+  const card = cardMap[cardId];
+
   const references = {
     stepRefs: [{
       runId,
@@ -136,11 +146,17 @@ export async function handleAgentExplain(reqBody) {
       event: realStep.event,
       mid: realStep.variables?.mid ?? null
     }],
-    sourceRefs: [{
-      cardId,
-      cardText: cardContents[cardId] || '',
-      sourceVersion: run.sourceVersion || 'bs-v1'
-    }]
+    sourceRefs: card ? [{
+      cardId: card.id,
+      title: card.title,
+      content: card.content,
+      sourceId: card.sourceId,
+      sourceType: card.sourceType,
+      version: card.version,
+      verified: card.verified,
+      chapter: card.chapter,
+      pages: card.pages
+    }] : []
   };
 
   return {
