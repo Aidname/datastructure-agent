@@ -2,7 +2,7 @@
 
 更新：2026-10-20（北京时间）；核验基线 main `cc8d171`，已合并04的[PR #10](https://github.com/tw1l1ghtcc/datastructure-agent/pull/10)、01的[#11](https://github.com/tw1l1ghtcc/datastructure-agent/pull/11)及09的[#12](https://github.com/tw1l1ghtcc/datastructure-agent/pull/12)。本表按仓库可核验交付记录，线下进度待队员补充。
 
-已登记01、02、03、04、06、07、08、09，共8人；05、10资料待填，队名待确认。登记不代表业务完成。
+已登记01、02、03、04、05、06、07、08、09，共8人；10资料待填，队名待确认。登记不代表业务完成。
 
 ## 当前交付
 
@@ -12,7 +12,7 @@
 - 09需求v0.9、五页可点击原型、七张截图、彩色/单色标志与导出、思维导图/领域模型、40项覆盖规划已合并。见[原型入口](../prototype/README.md)和[09检查记录](../product/review-20261020.md)；本轮核对文件与入口，不把PR中的浏览器检查报告视为01重跑或08验收。
 - 生产页面仍为占位；工作台、动画、Agent/检索、本机记录及完整学习流程尚无合并实现。Agent固定503，知识接口501，没有模型调用或真实效果对比结果。
 - 01后端审查不代表08交叉验收，也不代表02/03/05/07页面与模块联调已经通过。
-
+- 05已交付本地 Mock Agent：explain.mjs 解释器 + server.js 路由接入；/api/agent/explain 返回 mock 解释（cost=0, model=mock）替代原 503 占位接04真实状态与06内容，落实引用、失败处理、预算和真实用量 
 ## 成员进度
 
 | 成员 | 主责 | 当前可核验状态 | 依据 | 下一步 |
@@ -21,7 +21,7 @@
 | 02 蒋书瑞 | 工作台、前端入口 | 已登记；未见合并业务实现 | 登记[#6](https://github.com/tw1l1ghtcc/datastructure-agent/pull/6) | 接04运行接口及源码，整合03/05/07前端模块 |
 | 03 冯玄 | 动画与播放 | 已登记；未见合并业务实现 | 登记[#1](https://github.com/tw1l1ghtcc/datastructure-agent/pull/1) | 可直接用真实steps开发播放/回看，与02确认模块接口 |
 | 04 林为峰 | 引擎、run、后端入口 | 后端模块已合并并通过01独立检查，待消费者联调；Agent handler接入未完成 | [#10](https://github.com/tw1l1ghtcc/datastructure-agent/pull/10) | 配合02/03/05/07联调，确认容量策略及05状态工具接入 |
-| 05 待登记 | Agent、检索与聊天 | 未见合并业务实现；当前503仅占位 | [API现状](../architecture/api-contract.md) | 接04真实状态与06内容，落实引用、失败处理、预算和真实用量 |
+| 05 你的姓名 | Agent、检索与聊天 | 已交付本地 Mock Agent：explain.mjs 解释器 + server.js 路由接入；/api/agent/explain 返回 mock 解释（cost=0, model=mock），替代原 503 占位 |  | 接04真实状态与06内容，落实引用、失败处理、预算和真实用量 |
 | 06 秦文昊 | 知识与题目 | 内容已合并，04读题/判分通过；其余接入及交叉验收待完成 | [#7](https://github.com/tw1l1ghtcc/datastructure-agent/pull/7)、[接入说明](../../content/exercises/HANDOFF.md) | 配合05检索、07练习、08复核；复核09已交40项覆盖与动画规划 |
 | 07 吴圣洲 | 练习记录与真实调研 | 已登记；未见合并业务或调研成果 | 登记[#9](https://github.com/tw1l1ghtcc/datastructure-agent/pull/9) | 接题库/判分，保存题目版本与本机记录，补真实访谈/试用证据 |
 | 08 乔震宇 | 测试与效果对比 | 已登记；未见本人提交的业务测试/效果验收成果 | 登记[#4](https://github.com/tw1l1ghtcc/datastructure-agent/pull/4)、[#5](https://github.com/tw1l1ghtcc/datastructure-agent/pull/5) | 独立复核04/06，验收联动并组织真实模型三案例对比 |
