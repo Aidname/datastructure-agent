@@ -1,21 +1,7 @@
-// backend/src/agent/explain.mjs
-// 成员05：Agent 占位实现（Mock），不接真实模型，拼接04状态+06知识卡
+// 成员05：Agent Mock解释器
+// 接收 { runId, stepIndex, question, stepState }
+// 返回 { runId, stepIndex, answer, references, usage }
 
-import { readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-// 读06的知识卡（cards.json），路径按需微调
-const __dirname = dirname(fileURLToPath(import.meta.url));
-let knowledgeCards = [];
-try {
-  const cardsPath = join(__dirname, '../../content/knowledge/cards.json'); // 确认实际路径
-  knowledgeCards = JSON.parse(readFileSync(cardsPath, 'utf-8'));
-} catch (e) {
-  console.warn('[agent] 知识卡读取失败，使用空数组', e.message);
-}
-
-// 根据04的 event 匹配06的卡片（简化映射）
 const eventCardMap = {
   'init': 'bs-k01',
   'probe': 'bs-k03',
@@ -25,34 +11,36 @@ const eventCardMap = {
   'not-found': 'bs-k06'
 };
 
-export async function explain({ runId, stepIndex, question, stepState }) {
-  // stepState 是04传的 {left, right, mid, event, ...}
-  const { left, right, mid, event } = stepState || {};
-  const cardId = eventCardMap[event] || 'bs-k03';
-  const card = knowledgeCards.find(c => c.id === cardId) || { title: '二分查找', content: '' };
+const cardContents = {
+  'bs-k01': '本样例要求数组按非递减顺序排列，二分查找利用有序性排除一半候选区间。',
+  'bs-k02': '当前候选范围是闭区间[left,right]，初始化为left=0、right=n-1。',
+  'bs-k03': 'mid=left+floor((right-left)/2)，算出的是下标，A[mid]才是中点值。',
+  'bs-k04': '当A[mid]<target时，排除[left,mid]，令left=mid+1。',
+  'bs-k05': '当A[mid]>target时，排除[mid,right]，令right=mid-1。',
+  'bs-k06': '当left>right时区间为空，应结束并返回-1。',
+  'bs-k07': '空数组直接结束并返回-1，单元素仍需比较一次。',
+  'bs-k08': '本项目采用中点值相等就返回mid的版本，重复值允许返回实际命中的位置。',
+  'bs-k09': '最坏时间复杂度O(log n)，最好一次比较命中O(1)。',
+  'bs-k10': '初始化及更新边界后mid=null，表示当前轮中点尚未计算。'
+};
 
-  // 拼装回答
-  const answer = `【Agent Mock】步骤${stepIndex}（${event}）：当前区间[${left},${right}]，mid=${mid}。${card.title}：${card.content.slice(0, 50)}... 回答你的问题：“${question}”`;
+export async function handleAgentExplain(input) {
+  const { runId, stepIndex, question, stepState } = input || {};
+  const left = stepState?.left ?? '?';
+  const right = stepState?.right ?? '?';
+  const mid = stepState?.mid ?? '?';
+  const event = stepState?.event ?? 'probe';
+
+  const cardId = eventCardMap[event] || 'bs-k03';
+  const cardText = cardContents[cardId] || '';
+
+  const answer = `【Agent辅导】步骤${stepIndex}（${event}）：当前区间[${left},${right}]，mid=${mid}。${cardText} 针对你的问题"${question}"，建议结合当前步骤状态理解。`;
 
   return {
-    runId,
-    stepIndex,
+    runId: runId || 'unknown',
+    stepIndex: stepIndex ?? 0,
     answer,
     references: [cardId],
     usage: { model: 'mock', cost: 0 }
   };
-}
-
-// 给路由调用（POST /api/agent/explain）
-export default async function handler(req, res) {
-  try {
-    const { runId, stepIndex, question, stepState } = req.body || {};
-    if (!runId || stepIndex == null) {
-      return res.status(400).json({ error: 'INVALID_INPUT' });
-    }
-    const result = await explain({ runId, stepIndex, question, stepState });
-    res.status(200).json(result);
-  } catch (e) {
-    res.status(503).json({ error: 'MODEL_NOT_CONFIGURED', message: e.message });
-  }
 }
