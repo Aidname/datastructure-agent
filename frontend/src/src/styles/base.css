@@ -1,0 +1,8 @@
+:root { font-family: system-ui, sans-serif; color: #172033; background: #f3f5f9; }
+body { margin: 0; }
+main { max-width: 1100px; margin: 0 auto; padding: 28px; }
+h1 { margin-bottom: 8px; }
+.regions { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+section { background: #fff; border: 1px solid #dce2ec; border-radius: 10px; padding: 18px; }
+section h2 { margin-top: 0; font-size: 18px; }
+#service-status { padding: 12px; background: #e6eefc; border-radius: 6px; }
