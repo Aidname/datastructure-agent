@@ -1,6 +1,6 @@
 # API 契约 v1
 
-更新：2026-10-22；算法接口基于PR #10，Agent基于已合并PR #18，本分支增加问题知识检索。同源前后端，请求使用 JSON 与 `Content-Type: application/json`。本页区分已实现行为与后续计划；消费者联调状态见[接口对齐清单](contract-alignment.md)。
+更新：2026-10-23；算法接口基于PR #10，Agent/问题检索基于已合并PR #18/#20，本分支为07接入增加可选题目版本校验。同源前后端，请求使用 JSON 与 `Content-Type: application/json`。本页区分已实现行为与后续计划；消费者联调状态见[接口对齐清单](contract-alignment.md)。
 
 ## 当前接口
 
@@ -47,7 +47,7 @@ context 是题目场景，不是实时 run 的 step：可能含 before-probe，s
 POST /api/exercises/check 输入示例：
 
 ```json
-{"exerciseId":"bs-q02","answer":"A","hintLevel":1}
+{"exerciseId":"bs-q02","exerciseVersion":"1.0.0","answer":"A","hintLevel":1}
 ```
 
 - value：answer 必须为安全整数数字；choice：必须为 options 中的精确选项 ID 字符串；judgement：必须为布尔值。
@@ -56,7 +56,7 @@ POST /api/exercises/check 输入示例：
 - 错误，一级/二级：`{"correct":false,"hint":"对应固定提示"}`。
 - 错误，第三级：`{"correct":false,"correctAnswer":"B","explanation":"对应解析"}`；correctAnswer 类型随题型变化，此时无 hint 字段。
 - 类型/提示级别/选项非法为400 INVALID_INPUT；题目不存在为404 NOT_FOUND。评分由程序执行，不调用模型，也不保存作答记录。
-- 公开 version 已提供；判分请求当前不校验 exerciseVersion。07保存记录时应保留所见题目版本，旧版本判分策略仍需联调。
+- exerciseVersion 可省略以兼容既有调用；提供时必须为非空字符串，否则400 INVALID_INPUT。与服务端题目version不一致时409 EXERCISE_VERSION_MISMATCH，客户端提示刷新题库，不保存作答。07始终发送当前展示版本，并在本机记录中保留题目快照、版本、答案、正确性、提示级别、时间和可选run/步骤关联。旧版本记录仅供回顾，不计入当前版本进度；重练使用当前题库。
 
 ## 错误与未实现部分
 
@@ -78,7 +78,7 @@ GET /api/agent/usage?sessionId=... 返回当前socket来源+session、服务启�
 
 限流默认开启，按socket peer来源聚合；忽略session、User-Agent、x-forwarded-for。反向代理部署需另明确可信来源策略。预算调用前同步预留，避免并发重复分配；本地单进程持久账本位于已忽略的data/private/agent-budget.json，保留失败、未知用量及中断调用的预留。默认测试累计30元、每日5元；这是估算额度控制，实际账单仍以服务商为准，多实例需事务共享存储。配置见[Agent说明](../../backend/src/agent/README.md)。
 
-按问题检索已接入，详见下节；本分支已完成02/03/05工作台装配，07模块与真实模型效果验收仍待完成。聊天独立页支持URL传runId/stepIndex，失败重试保存原请求快照。02负责工作台装配，05配合；真实案例由05提供调用记录并配合08评测。
+按问题检索已接入，详见下节；本分支已完成02/03/05工作台装配，07模块已在本分支接入并通过本地检查，真实模型效果及08独立验收仍待完成。聊天独立页支持URL传runId/stepIndex，失败重试保存原请求快照。02负责工作台装配，05配合；真实案例由05提供调用记录并配合08评测。
 
 回归：`node --test tests/knowledge-retrieval.test.mjs tests/agent-explain.test.mjs tests/agent-provider.test.mjs tests/agent-real-mode.test.mjs`。测试使用本地桩，不是实际模型效果证据。
 

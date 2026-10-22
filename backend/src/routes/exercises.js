@@ -33,7 +33,7 @@ export function handleGetExercises(req, res) {
 // POST /api/exercises/check：判分
 export function handleCheckExercise(req, res, body) {
   try {
-    const { exerciseId, answer, hintLevel } = JSON.parse(body);
+    const { exerciseId, exerciseVersion, answer, hintLevel } = JSON.parse(body);
     
     if (!exerciseId || answer === undefined) {
       return sendError(res, 400, 'INVALID_INPUT', '缺少 exerciseId 或 answer');
@@ -48,6 +48,14 @@ export function handleCheckExercise(req, res, body) {
     const exercise = oracleData.find(ex => ex.id === exerciseId);
     if (!exercise) {
       return sendError(res, 404, 'NOT_FOUND', '题目不存在');
+    }
+
+    // Optional for compatibility; current UI always sends the displayed version.
+    if (exerciseVersion !== undefined && (typeof exerciseVersion !== 'string' || !exerciseVersion.trim())) {
+      return sendError(res, 400, 'INVALID_INPUT', 'exerciseVersion 必须是非空字符串');
+    }
+    if (exerciseVersion !== undefined && exerciseVersion !== exercise.version) {
+      return sendError(res, 409, 'EXERCISE_VERSION_MISMATCH', '题目版本已更新，请刷新题库后重新作答');
     }
 
     let isCorrect = false;

@@ -2,6 +2,7 @@ import { createRun, requestJSON } from './services/api.js';
 import { parseInput, validateRun } from './features/workbench/input.js';
 import { createVisualization, describeStep } from './features/visualization/index.js';
 import { createPlayback } from './features/playback/index.js';
+import { createExercises } from './features/exercises/index.js';
 import { createAgentChat } from './features/agent/panel.js';
 
 const $ = id => document.getElementById(id);
@@ -16,10 +17,12 @@ export function subscribeStep(listener) {
   listeners.add(listener); listener(currentContext);
   return () => listeners.delete(listener);
 }
+const exercises = createExercises($('exercise-mount'), {onBeforeAnswer:()=>playback?.pause()});
+const unsubscribeExercises = subscribeStep(exercises.setContext);
 function publish(context) {
   currentContext = context;
   agent.setContext(context);
-  $('exercise-context').textContent = context ? `当前运行：第 ${context.stepIndex+1} 步 / 共 ${context.total} 步。题目情境由练习模块单独标明。` : '先创建一次运行。';
+  $('exercise-context').textContent = context ? `当前运行：第 ${context.stepIndex+1} 步 / 共 ${context.total} 步。题目情境由练习模块单独标明。` : '当前无工作台运行，可独立完成固定题练习。';
   const host = $('exercise-mount');
   if (context) { host.dataset.runId=context.runId; host.dataset.stepIndex=String(context.stepIndex); }
   else { delete host.dataset.runId;delete host.dataset.stepIndex; }
@@ -86,6 +89,6 @@ $('visualization-panel').addEventListener('keydown',event=>{
   else if(event.key===' '){event.preventDefault();playback.getState().playing?playback.pause():playback.play();}
 });
 requestJSON('/api/health').then(data=>{$('service-status').textContent=data.mode==='mock'?'服务已连接 · 辅导为 Mock 开发模板':data.modelCallsEnabled?'服务已连接 · 辅导使用真实模型':'服务已连接 · 模型未配置，动画仍可使用';}).catch(()=>{$('service-status').textContent='服务未连接，请按启动说明重试。';});
-window.addEventListener('pagehide',()=>{generation++;pending?.abort();playback?.destroy();viz?.destroy();agent.destroy();listeners.clear();},{once:true});
+window.addEventListener('pagehide',()=>{generation++;pending?.abort();playback?.destroy();viz?.destroy();agent.destroy();unsubscribeExercises();exercises.destroy();listeners.clear();},{once:true});
 window.addEventListener('pageshow',event=>{if(event.persisted)location.reload();});
 publish(null);

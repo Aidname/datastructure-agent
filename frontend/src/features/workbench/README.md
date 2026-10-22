@@ -20,7 +20,7 @@
 
 ## 07挂载与上下文
 
-当前07生产练习/记录模块尚未交付，因此工作台明确显示尚未开放，不实现或冒充07题目/记录逻辑。04题库与程序判分API保持可用。
+本分支通过createExercises装配07过程练习与本机记录，并以subscribeStep同步工作台上下文；提交答案前暂停播放，pagehide销毁订阅与异步请求。固定题使用04真实题库/判分接口，详见[练习说明](../exercises/README.md)与[本地检查](../../../../docs/architecture/exercises-check-20261023.md)。
 
 - 07挂载点：`#exercise-mount`；外围标题与状态由02维护，07只修改挂载点内部。
 - 从 `/src/app.js` 导入 `subscribeStep(listener)`。注册时立即收到当前context（含初始第0步），返回取消订阅函数；之后每次步骤/播放状态变化收到更新。
