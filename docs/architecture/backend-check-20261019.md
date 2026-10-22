@@ -20,6 +20,6 @@
 
 这证明当前后端模块的上述行为通过01独立检查，不代表前端联调、08交叉验收、真实Agent/检索、真实访谈或效果对比完成。C/C++片段的检查也不等于编译执行证明。
 
-仓库根目录 pr10-full-audit.mjs / pr10-full-results.json 的 reviewedHead 仍标记旧提交19a5576，不能用该元数据证明当前版本；本轮依据外部独立脚本在合并后代码上的重跑结果。本轮未修改这些历史审查文件。
+原根目录审查文件的reviewedHead仍标记旧提交19a5576，不能用该元数据证明当前版本；本轮依据外部独立脚本在合并后代码上的重跑结果。2026-10-23整理时，原结果原样归档到[evidence/backend-pr10/results.json](evidence/backend-pr10/results.json)；脚本整理为[tests/backend-acceptance.mjs](../../tests/backend-acceptance.mjs)，按当前接口运行，不覆盖历史结果。
 
 静态检查、内容检查、文档相对链接与人工样例一致性另在本轮提交前检查。具体接口以[API契约](api-contract.md)为准，消费者待确认事项见[接口对齐清单](contract-alignment.md)。

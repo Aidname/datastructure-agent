@@ -19,28 +19,9 @@
  *   4) 每次状态变化【恰好广播一次】，不在渲染里顺手再广播；
  *   5) getDiagnostics().activeTimers 恒为 0 或 1，可直接作为"没有两套计时器"的证据。
  *
- * ================= [before it happens] 尚未接入的依赖 =================
- * [before it happens] C06 广播接口：onStepChange 的载荷形状（{runId, stepIndex, step,
- *   canPrev, canNext, playing, total, intervalMs}）与订阅方式是 03 的提案，待 02 确认。
- *   这个广播口同时被 05（提问要定位到具体 step）和 07（练习上下文）消费，
- *   02/03 定完必须同步 05/07，否则 19 日集成才发现签名不兼容。
- *   docs/architecture/contract-alignment.md C06。
- * [before it happens] 真实步骤：现在注入的是 fixtures 里的模拟 steps；17 日换成 04 真实轨迹时
- *   只替换注入点（steps 与 runId），本模块逻辑不变。
- * [before it happens] 挂载与销毁：02 换输入时必须调用 destroy()（或丢弃实例并新建），
- *   否则旧 run 的计时器会继续推进新上下文。
- * [before it happens] 暂停后提问（05）、播放结束的练习联动（07）尚未接入。
- *
- * ================= [02 unsupports] 02 尚未提供的接口 =================
- * [02 unsupports] 广播通道：02 还没有"把 runId + stepIndex 发给代码面板 / 05 / 07"的统一接口或事件总线
- *   （C06 在 contract-alignment.md 里仍写着"待提案与联调，不单方规定函数或事件总线"）。
- *   所以本模块**只**回调创建者给的 onStepChange；不给 02 之外的人发事件、不读全局状态、不碰 DOM。
- *   → 02 的装配层需要自己把这份载荷转发给代码面板/05/07（转发方式待 02 定）。
- * [02 unsupports] 换 run 时的清理：本模块不感知 runId 变化，也不能自己判断"旧 run 的实例"。
- *   → 02 在换输入后必须对旧实例调用 destroy()（或直接丢弃），否则旧计时器会推进新上下文。
- * [02 unsupports] 挂载点与控件位置：开始/暂停/单步/重置/速度这些按钮的**位置与外观**属 02 的页面壳；
- *   03 只提供上面那些方法与状态，开发页里的传输条只是自测替身。
- * =====================================================================
+ * 当前由正式工作台注入04真实run/steps；装配层负责初始步骤分发、上下文同步及换run销毁。
+ * createPlayback仅回调创建者；工作台通过subscribeStep转发给05/07。
+ * 接入方式见本模块README及visualization/C02-INTEGRATION.md。
  */
 
 /**

@@ -172,7 +172,7 @@ test('JSON errors and UTF-8 body limit preserve INVALID_INPUT on all POST routes
 });
 
 test('static assets and existing exercise routes still work with mock enabled', async () => {
-  for (const path of ['/', '/src/features/visualization/dev-morph.html', '/src/features/visualization/index.js']) {
+  for (const path of ['/', '/src/features/exercises/index.js', '/src/features/visualization/index.js']) {
     const response = await fetch(mockBase + path);
     assert.equal(response.status, 200); await response.arrayBuffer();
   }

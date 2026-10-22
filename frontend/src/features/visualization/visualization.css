@@ -1,7 +1,7 @@
 /*
  * 成员03 · 动画样式（主责路径 frontend/src/features/visualization/visualization.css）
  *
- * 只作用于本模块的 .bsviz 容器，不改 02 的 frontend/src/styles/base.css。
+ * 只作用于本模块的 .bsviz 容器，宿主页面样式由 frontend/src/styles/workbench.css 负责。
  * 颜色只是辅助：指针一律带 L / R / M 文字，去色后仍可辨认（规格要求"不能只用颜色区分"）。
  *
  * 主题化：所有颜色都收敛成 .bsviz 上的 --viz-* 自定义属性，默认值是【浅色】，

@@ -12,7 +12,6 @@
 - 广播载荷：`{ runId, stepIndex, step, canPrev, canNext, playing, total, intervalMs }`
 - 接入 02 的说明（含换 run / destroy 职责）：`../visualization/C02-INTEGRATION.md`
 
-尚未接入：`[02 unsupports]` 把 `runId + stepIndex` 分发给代码面板 / 05 / 07 的统一接口或事件总线
-（C06 待 02 确认）；本模块只回调创建者，不发全局事件、不碰 DOM。
+正式工作台已消费onStepChange并分发runId/stepIndex给代码面板、05和07；本模块仍只回调创建者，不发全局事件、不碰DOM。装配层通过subscribeStep提供当前上下文并负责销毁，见工作台README。
 
 UI 步骤从 1 显示，接口 `stepIndex` 从 0 计数；不混淆两种序号。
