@@ -2,7 +2,7 @@
 
 **看懂每一步：数据结构与算法可视化学习助手。**
 
-截至2026-10-20，main `cc8d171` 已合并成员04的[PR #10](https://github.com/tw1l1ghtcc/datastructure-agent/pull/10)：确定性二分查找、源码行映射、完整运行/单步查询、题库与程序判分接口可用。成员06已提供10张自编知识卡、10题及固定提示、11组人工预期。后端独立核验26/26通过。成员09的[PR #12](https://github.com/tw1l1ghtcc/datastructure-agent/pull/12)已合并需求v0.9、五页可点击原型、项目标志、思维导图/领域模型和40项覆盖规划；原型独立预览，生产工作台、动画、Agent/检索、本机记录及完整流程仍待接入，当前没有模型调用。详见[任务看板](docs/team/progress.md)及[后端核验记录](docs/architecture/backend-check-20261019.md)。
+截至2026-10-20，main `cc8d171` 已合并成员04的[PR #10](https://github.com/tw1l1ghtcc/datastructure-agent/pull/10)：确定性二分查找、源码行映射、完整运行/单步查询、题库与程序判分接口可用。成员06已提供10张自编知识卡、10题及固定提示、11组人工预期。后端独立核验26/26通过。成员09的[PR #12](https://github.com/tw1l1ghtcc/datastructure-agent/pull/12)已合并需求v0.9、五页可点击原型、项目标志、思维导图/领域模型和40项覆盖规划；原型独立预览，生产工作台、动画、Agent/检索、本机记录及完整流程仍待接入，当时尚未接入模型。当前分支的05实现见下方说明。详见[任务看板](docs/team/progress.md)及[后端核验记录](docs/architecture/backend-check-20261019.md)。
 
 ## 从哪里开始
 
@@ -39,7 +39,7 @@ Copy-Item .env.example .env
 npm start
 ```
 
-启动及算法/判分接口不需要模型密钥。不要把 `.env` 提交到仓库。
+启动及算法/判分接口不需要模型密钥。示例配置默认 AGENT_MOCK=true，优先使用免费开发模板；关闭Mock且配置DEEPSEEK_API_KEY后才调用真实API。不要把 `.env` 提交到仓库。模型配置、聊天页、限流与预算说明见[Agent说明](backend/src/agent/README.md)。
 
 启动后，另开一个 PowerShell 窗口检查服务：
 
@@ -47,7 +47,7 @@ npm start
 Invoke-RestMethod http://127.0.0.1:3000/api/health
 ```
 
-当前预期为 `ok=true`、`stage=scaffold`、`implemented` 包含 `static-page/health/runs/exercises`、`modelCallsEnabled=false`。stage 字符串尚沿用 scaffold，浏览器仍显示占位页面；后端运行/判分接口已可直接调用，Agent固定503，知识接口501。模型配置项仍是预留。检查结束后在运行 `npm start` 的窗口按 Ctrl+C 停止服务。
+当前预期为 `ok=true`、`stage=scaffold`、`implemented` 包含 `static-page/health/runs/exercises/agent`。mode为disabled/mock/deepseek，modelCallsEnabled只在真实模式为true。正式工作台仍待整合，独立聊天页可用；知识检索接口仍501。检查结束后在运行 `npm start` 的窗口按 Ctrl+C 停止服务。
 
 可在服务运行时验证完整轨迹：
 

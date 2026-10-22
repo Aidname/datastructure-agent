@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import { handleCreateRun, handleGetRun, handleGetStep } from './routes/runs.js';
 import { handleGetExercises, handleCheckExercise } from './routes/exercises.js';
-import { checkRateLimit, checkBudget, consumeTokens, getUsage } from './agent/rate-limit.js';
+import { getUsage } from './agent/rate-limit.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const frontendRoot = resolve(here, '../../frontend');
@@ -106,7 +106,7 @@ const server = createServer(async (request, response) => {
           if (err.message === 'MODEL_TIMEOUT') {
             return json(response, 504, { error: { code: 'MODEL_TIMEOUT', message: '模型响应超时，请稍后重试' } });
           }
-          return json(response, 502, { error: { code: 'MODEL_CALL_FAILED', message: '模型调用失败', detail: err.message } });
+          return json(response, 502, { error: { code: 'MODEL_CALL_FAILED', message: '模型调用失败' } });
         }
       }
 
@@ -125,6 +125,10 @@ const server = createServer(async (request, response) => {
       const headerSessionId = request.headers['x-session-id'];
       const sessionId = querySessionId || headerSessionId || 'anon';
       return json(response, 200, { ok: true, ...getUsage(request, sessionId) });
+    }
+
+    if (pathname === '/api/knowledge/cards' && method === 'GET') {
+      return json(response, 501, { error: { code: 'NOT_IMPLEMENTED', message: '知识检索接口尚未接入', owner: 'M05+M06' } });
     }
 
     // 6. 静态文件

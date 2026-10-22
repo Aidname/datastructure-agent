@@ -8,160 +8,104 @@ const hintLevelSelect = document.getElementById('hint-level-select');
 const usageInfo = document.getElementById('usage-info');
 const statusBadge = document.getElementById('status-badge');
 const currentStepLabel = document.getElementById('current-step-label');
+let busy = false;
+let failedRequest = null;
+let usageRequest = 0;
+const params = new URLSearchParams(location.search);
+runIdInput.value = params.get('runId') || '';
+stepIndexInput.value = params.get('stepIndex') || '';
+updateCurrentStepLabel();
 
-let currentReqId = 0;
-let activeController = null;
+fetch('/api/health').then(r => r.json()).then(data => {
+  statusBadge.textContent = data.modelCallsEnabled ? '在线模式（DeepSeek）' : data.mode === 'mock' ? 'Mock模式' : '模型未配置';
+  statusBadge.className = data.modelCallsEnabled ? 'badge live' : 'badge mock';
+}).catch(() => { statusBadge.textContent = '服务不可用'; });
 
-const params = new URLSearchParams(window.location.search);
-if (params.get('runId')) runIdInput.value = params.get('runId');
-if (params.get('stepIndex')) {
-  stepIndexInput.value = params.get('stepIndex');
-  updateCurrentStepLabel();
-}
-
-fetch('/api/health')
-  .then(r => r.json())
-  .then(data => {
-    if (data.modelCallsEnabled) {
-      statusBadge.textContent = `在线模式（${data.mode || 'deepseek'}）`;
-      statusBadge.className = 'badge live';
-    } else if (data.mode === 'mock') {
-      statusBadge.textContent = 'Mock模式';
-      statusBadge.className = 'badge mock';
-    }
-  })
-  .catch(() => {});
-
-function refreshUsage() {
-  fetch('/api/agent/usage')
-    .then(r => r.json())
-    .then(data => {
-      if (data.ok) {
-        usageInfo.textContent = `调用 ${data.requests} 次 · Token ${data.tokensUsed} · 费用 ${data.costUsed.toFixed(4)} 元`;
-      }
-    })
-    .catch(() => {});
+async function refreshUsage(sessionId = runIdInput.value.trim()) {
+  const ticket = ++usageRequest;
+  try {
+    const res = await fetch('/api/agent/usage?sessionId=' + encodeURIComponent(sessionId));
+    const data = await res.json();
+    if (!res.ok || !data.ok || ticket !== usageRequest || sessionId !== runIdInput.value.trim()) return;
+    const tokens = data.tokensUsed == null ? '未知' : data.tokensUsed;
+    const cost = data.costUsed == null ? '未知' : `${Number(data.costUsed).toFixed(6)} 元（配置估算）`;
+    usageInfo.textContent = `本次服务会话调用 ${data.requests} 次 · 失败 ${data.failures || 0} 次 · Token ${tokens} · 费用 ${cost}`;
+  } catch { /* Keep the last known usage rather than replacing it with zero. */ }
 }
 refreshUsage();
 
 function updateCurrentStepLabel() {
-  const s = stepIndexInput.value;
-  currentStepLabel.textContent = s === '' ? '未选择步骤' : `当前选中：步骤 ${Number(s) + 1}`;
+  const value = stepIndexInput.value;
+  currentStepLabel.textContent = value === '' ? '未选择步骤' : `当前选中：步骤 ${Number(value) + 1}`;
 }
-
-stepIndexInput.addEventListener('change', () => {
-  updateCurrentStepLabel();
-  appendMessage('system', `已切换到步骤 ${Number(stepIndexInput.value) + 1}（上方历史回答仍归属原步骤）`, null);
-});
+stepIndexInput.addEventListener('change', updateCurrentStepLabel);
+runIdInput.addEventListener('change', () => refreshUsage());
 
 function appendMessage(role, content, meta) {
   const div = document.createElement('div');
   div.className = `message ${role}`;
-
   if (meta) {
     const tag = document.createElement('div');
     tag.className = 'message-meta';
     tag.textContent = meta;
     div.appendChild(tag);
   }
-
   const body = document.createElement('div');
   body.className = 'message-body';
   body.textContent = content;
   div.appendChild(body);
-
   messagesEl.appendChild(div);
   messagesEl.scrollTop = messagesEl.scrollHeight;
   return div;
 }
 
-function setLoading(isLoading) {
-  if (isLoading) {
-    sendBtn.disabled = true;
-    questionInput.disabled = true;
-    retryBtn.style.display = 'none';
-    const loading = appendMessage('system', '正在思考…', '加载中');
-    loading.id = 'loading-msg';
-  } else {
-    sendBtn.disabled = false;
-    questionInput.disabled = false;
-    const loading = document.getElementById('loading-msg');
-    if (loading) loading.remove();
-  }
-}
-
-async function sendMessage() {
-  const runId = runIdInput.value.trim();
-  const stepIndex = stepIndexInput.value.trim();
-  const hintLevel = parseInt(hintLevelSelect.value);
-  const question = questionInput.value.trim();
-
-  if (!runId) { alert('请先输入 runId'); return; }
-  if (stepIndex === '') { alert('请输入步骤索引'); return; }
-  if (!question) { alert('请输入问题'); return; }
-
-  const thisReqId = ++currentReqId;
-
-  if (activeController) activeController.abort();
-  activeController = new AbortController();
-
-  const boundMeta = `提问时步骤：第${Number(stepIndex) + 1}步 · 提示级别${hintLevel}`;
-  appendMessage('user', question, boundMeta);
-  questionInput.value = '';
-  setLoading(true);
-
+async function sendMessage(snapshot) {
+  if (busy) return;
+  const input = snapshot || { runId: runIdInput.value.trim(), stepIndex: Number(stepIndexInput.value),
+    question: questionInput.value.trim(), hintLevel: Number(hintLevelSelect.value) };
+  if (!input.runId) { alert('请先输入 runId'); return; }
+  if ((!snapshot && stepIndexInput.value === '') || !Number.isSafeInteger(input.stepIndex) || input.stepIndex < 0) { alert('请输入有效的步骤索引'); return; }
+  if (!input.question) { alert('请输入问题'); return; }
+  busy = true;
+  failedRequest = null;
+  sendBtn.disabled = true;
+  retryBtn.style.display = 'none';
+  questionInput.disabled = true;
+  const meta = `runId=${input.runId} · 步骤${input.stepIndex + 1} · 级别${input.hintLevel}`;
+  appendMessage('user', input.question, `提问归属：${meta}`);
+  if (!snapshot) questionInput.value = '';
+  const loading = appendMessage('system', '正在思考…', meta);
   const startedAt = Date.now();
-
   try {
     const res = await fetch('/api/agent/explain', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-session-id': runId },
-      body: JSON.stringify({ runId, stepIndex: parseInt(stepIndex), hintLevel, question, sessionId: runId }),
-      signal: activeController.signal
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...input, sessionId: input.runId })
     });
-
     const data = await res.json();
-    setLoading(false);
-
-    if (thisReqId !== currentReqId) {
-      // 迟到回复：仍渲染但标注原步骤
-      if (data.answer) {
-        const elapsed = Date.now() - startedAt;
-        const meta = `[迟到·原步骤${data.stepIndex !== undefined ? Number(data.stepIndex) + 1 : Number(stepIndex) + 1}] 回答归属：runId=${data.runId || runId} · 步骤${data.stepIndex !== undefined ? Number(data.stepIndex) + 1 : '?'} · ${elapsed}ms`;
-        appendMessage('assistant', data.answer, meta);
-      }
-      return;
-    }
-
-    if (data.answer) {
-      const elapsed = Date.now() - startedAt;
-      const meta = `回答归属：runId=${data.runId} · 步骤${data.stepIndex + 1} · 级别${data.hintLevel || hintLevel} · ${elapsed}ms${data.usage?.degraded ? ' · 已降级' : ''}`;
-      appendMessage('assistant', data.answer, meta);
-
-      if (data.usage) {
-        const costText = data.usage.cost === null || data.usage.cost === undefined
-          ? '费用：未知（上游未返回用量）'
-          : `费用：${data.usage.cost} 元`;
-        const tokenText = data.usage.tokens
-          ? ` · Token ${data.usage.tokens.totalTokens}`
-          : ' · Token：未知';
-        usageInfo.textContent = `${costText}${tokenText} · 模式：${data.usage.mock ? 'Mock' : data.usage.model}`;
-      }
-      refreshUsage();
-    } else if (data.error) {
-      appendMessage('system', `错误（${data.error.code}）：${data.error.message}`, `请求耗时 ${Date.now() - startedAt}ms`);
-      retryBtn.style.display = 'inline-block';
+    if (!res.ok || typeof data.answer !== 'string') throw new Error(data.error?.message || '服务返回了无效回复');
+    const answerMeta = `回答归属：runId=${data.runId || input.runId} · 步骤${(data.stepIndex ?? input.stepIndex) + 1} · 级别${data.hintLevel || input.hintLevel} · ${Date.now() - startedAt}ms`;
+    const div = appendMessage('assistant', data.answer, answerMeta);
+    if (data.sourceRefs?.length) {
+      const refs = document.createElement('div');
+      refs.className = 'message-meta';
+      refs.textContent = data.sourceRefs.map(ref => `依据：${ref.cardId} ${ref.title || ''}（${ref.sourceId || '未提供来源'}）`).join('；');
+      div.appendChild(refs);
     }
   } catch (err) {
-    setLoading(false);
-    if (err.name === 'AbortError') return;
-    appendMessage('system', `请求失败：${err.message}。请检查服务是否运行。`, null);
+    failedRequest = { ...input };
+    appendMessage('system', `请求失败：${err.message}`, `原请求：${meta}`);
     retryBtn.style.display = 'inline-block';
+  } finally {
+    loading.remove();
+    busy = false;
+    sendBtn.disabled = false;
+    questionInput.disabled = false;
+    refreshUsage(input.runId);
   }
 }
 
-sendBtn.addEventListener('click', sendMessage);
-retryBtn.addEventListener('click', () => { retryBtn.style.display = 'none'; sendMessage(); });
-questionInput.addEventListener('keydown', (e) => {
+sendBtn.addEventListener('click', () => sendMessage());
+retryBtn.addEventListener('click', () => { if (failedRequest) sendMessage({ ...failedRequest }); });
+questionInput.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });

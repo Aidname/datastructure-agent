@@ -13,7 +13,7 @@ let cards;
 
 async function start(mock) {
   const child = spawn(process.execPath, ['backend/src/server.js'], {
-    cwd: root, env: { ...process.env, PORT: '0', HOST: '127.0.0.1', AGENT_MOCK: String(mock) },
+    cwd: root, env: { ...process.env, PORT: '0', HOST: '127.0.0.1', AGENT_MOCK: String(mock), DEEPSEEK_API_KEY: '', RATE_LIMIT: 'false' },
     windowsHide: true, stdio: ['ignore', 'pipe', 'pipe']
   });
   children.push(child);

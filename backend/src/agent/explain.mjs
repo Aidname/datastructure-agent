@@ -2,7 +2,7 @@ import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { getRun } from '../runs/store.js';
-import { checkRateLimit, checkBudget, consumeTokens } from './rate-limit.js';
+import { checkRateLimit, reserveModelCall, finishModelCall, recordMockCall } from './rate-limit.js';
 import { guardOutput, verifyOutput } from './output-guard.js';
 import { buildPrompt } from './prompt.js';
 
@@ -42,7 +42,7 @@ function cardText(card) {
 }
 
 const IRRELEVANT_PATTERNS = [
-  /(今天|明天|昨天|天气|几点|吃饭|睡觉|游戏|电影|音乐|股票|八卦)/,
+  /(天气预报|推荐电影|推荐音乐|股票行情|讲个笑话|陪我聊天)/,
   /(你是谁|你几岁|你喜欢|你能做啥|讲个笑话|陪我聊天)/,
 ];
 function isIrrelevantQuestion(question) {
@@ -104,6 +104,12 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
   const ev = step.event;
   const stepNo = step.stepIndex ?? idx;
 
+  if (process.env.RATE_LIMIT !== 'false' && req) {
+    const limit = checkRateLimit(req);
+    if (!limit.allowed) return { status: 429, body: { error: { code: 'RATE_LIMIT_EXCEEDED', message: '请求过于频繁，请稍后再试', retryAfter: Math.ceil(limit.resetIn / 1000) } } };
+  }
+  if (mode !== 'real' || isIrrelevantQuestion(question) || (!ev && arr.length === 0)) recordMockCall(req, bodySessionId);
+
   // ===== P2 FIX: 空数组判断修正 =====
   // 只有 step 完全没有 event（真正信息不足）才返回信息不足
   // 空数组 + 有 event（如 init）是合法状态，应正常解释
@@ -115,7 +121,7 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
         answer: '当前步骤信息不足，无法进行分析。请确认算法已正确运行。',
         stepRefs: [{ runId, stepIndex: idx, event: ev, left, right, mid }],
         sourceRefs: [],
-        usage: { model: 'mock', cost: null, mock: true, infoInsufficient: true }
+        usage: { model: 'mock', cost: 0, mock: true, infoInsufficient: true }
       }
     };
   }
@@ -134,37 +140,27 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
         answer: `你的问题「${question}」与当前二分查找步骤无关。我专注于帮你理解这一步发生了什么——比如「为什么 mid 是这样算的？」或「下一步为什么更新左边界？」。`,
         stepRefs: [{ runId, stepIndex: idx, event: ev, left, right, mid, knowledgeCard: cardId }],
         sourceRefs: [],
-        usage: { model: 'mock', cost: null, mock: true, irrelevant: true }
+        usage: { model: 'mock', cost: 0, mock: true, irrelevant: true }
       }
     };
   }
 
-  // ===== 限流 =====
-  if (process.env.RATE_LIMIT === 'true' && req) {
-    const limitResult = checkRateLimit(req, bodySessionId);
-    if (!limitResult.allowed) {
-      return { status: 429, body: { error: { code: 'RATE_LIMIT_EXCEEDED', message: '请求过于频繁，请稍后再试', retryAfter: Math.ceil(limitResult.resetIn / 1000) } } };
-    }
-  }
-
-  // ===== 预算检查 =====
-  if (mode === 'real' && process.env.BUDGET_ENABLED === 'true') {
-    const budgetResult = checkBudget(0.01);
-    if (!budgetResult.allowed) {
-      return { status: 429, body: { error: { code: 'BUDGET_EXCEEDED', message: `预估费用超出预算（已用 ${budgetResult.used.toFixed(4)} / 上限 ${budgetResult.limit.toFixed(4)} 元）`, used: budgetResult.used, limit: budgetResult.limit } } };
-    }
-  }
-
   // ===== 真实模型模式 =====
   if (mode === 'real') {
+    let receipt;
+    const startedAt = Date.now();
     try {
       const { DeepSeekProvider } = await import('./providers/deepseek.js');
       const provider = new DeepSeekProvider();
       const messages = buildPrompt(run, step, level, question, card);
-      const startedAt = Date.now();
+      const maxTokens = 1024;
+      const maximumTokens = Buffer.byteLength(JSON.stringify(messages), 'utf8') + maxTokens + 256;
+      const allocation = reserveModelCall(req, bodySessionId, maximumTokens);
+      if (!allocation.allowed) return { status: allocation.code === 'BUDGET_UNAVAILABLE' ? 503 : 429, body: { error: { code: allocation.code, message: '模型调用额度不足或预算记录不可用，请检查后端配置' } } };
+      receipt = allocation.receipt;
       // P2 FIX: 不再硬编码 15000，读 MODEL_TIMEOUT_MS
       const timeoutMs = Number(process.env.MODEL_TIMEOUT_MS) || 15000;
-      const result = await provider.chat(messages, { timeoutMs });
+      const result = await provider.chat(messages, { timeoutMs, maxTokens });
       const elapsedMs = Date.now() - startedAt;
 
       const guard = guardOutput(result.content);
@@ -175,9 +171,7 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
         if (!vr.pass) finalAnswer = vr.suggestion;
       }
 
-      if (result.usage && req) {
-        consumeTokens(req, bodySessionId, result.usage.totalTokens, result.cost || 0);
-      }
+      finishModelCall(receipt, { tokens: result.usage?.totalTokens ?? null, cost: result.cost ?? null, elapsedMs });
 
       return {
         status: 200,
@@ -193,7 +187,7 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
             model: result.model || 'deepseek-chat',
             cost: result.cost ?? null,
             costCurrency: 'CNY',
-            costBasis: result.usage ? '按 deepseek-chat 输入1元/百万token、输出2元/百万token估算' : null,
+            costBasis: result.cost == null ? null : '按后端配置单价估算，非实际账单',
             mock: false,
             tokens: result.usage || null,
             elapsedMs
@@ -201,11 +195,12 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
         }
       };
     } catch (err) {
+      finishModelCall(receipt, { elapsedMs: Date.now() - startedAt, failed: true });
       if (err.message === 'MODEL_TIMEOUT') {
         // P2 FIX: 移除"已降级为 Mock"的误导文案
         return { status: 504, body: { error: { code: 'MODEL_TIMEOUT', message: '模型响应超时，请稍后重试', degraded: false } } };
       }
-      return { status: 502, body: { error: { code: 'MODEL_CALL_FAILED', message: '模型调用失败，请稍后重试', detail: err.message } } };
+      return { status: 502, body: { error: { code: 'MODEL_CALL_FAILED', message: '模型调用失败，请稍后重试' } } };
     }
   }
 
@@ -264,7 +259,7 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
       stepRefs: [{ runId, stepIndex: idx, event: ev, left, right, mid, knowledgeCard: cardId, array: arr.length <= 20 ? arr : undefined, target }],
       sourceRefs: card ? [{ cardId: card.id || cardId, title: card.title || '', sourceId: card.sourceId || null, sourceType: card.sourceType || null, chapter: card.chapter ?? null, pages: card.pages ?? null, version: card.version, verified: card.verified }] : [],
       knowledgeUsed: !!card,
-      usage: { model: 'mock', cost: null, mock: true }
+      usage: { model: 'mock', cost: 0, mock: true }
     }
   };
 }
