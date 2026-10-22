@@ -2,7 +2,7 @@
 
 **看懂每一步：数据结构与算法可视化学习助手。**
 
-当前分支已接入04的真实二分查找run、03动画/播放、源码高亮与变量，以及05步骤辅导和按问题知识检索。正常启动后直接访问工作台。06已提供10张自编知识卡和10题，09需求/原型/图表已合并。07练习前端与本机记录尚未交付，页面仅保留挂载区；真实模型效果、真实调研及完整练习流程仍待验收。工作台状态和检查见[接入说明](frontend/src/features/workbench/README.md)与[本轮验收](docs/architecture/workbench-check-20261022.md)。
+当前分支已接入04的真实二分查找run、03动画/播放、源码高亮与变量，以及05步骤辅导和按问题知识检索。正常启动后直接访问工作台。06已提供10张自编知识卡和10题，09需求/原型/图表已合并。本分支已补齐07固定过程题、三级提示、错题重练和本机学习记录，可在无模型Key时使用；本地功能检查通过，真实模型效果、真实调研与08独立验收仍待完成。工作台状态和检查见[接入说明](frontend/src/features/workbench/README.md)、[工作台验收](docs/architecture/workbench-check-20261022.md)与[07代码验收](docs/architecture/exercises-check-20261023.md)。
 
 ## 从哪里开始
 
@@ -47,7 +47,7 @@ npm start
 Invoke-RestMethod http://127.0.0.1:3000/api/health
 ```
 
-当前预期为 `ok=true`、`stage=scaffold`、`implemented` 包含 `static-page/health/runs/exercises/agent/knowledge`。mode为disabled/mock/deepseek，modelCallsEnabled只在真实模式为true。正式工作台已接入真实动画、源码/变量与辅导，独立聊天页保留；07练习/记录界面尚未开放；知识接口已支持按问题查询verified知识卡，见[检索说明](backend/src/knowledge/README.md)。检查结束后在运行 `npm start` 的窗口按 Ctrl+C 停止服务。
+当前预期为 `ok=true`、`stage=scaffold`、`implemented` 包含 `static-page/health/runs/exercises/agent/knowledge`。mode为disabled/mock/deepseek，modelCallsEnabled只在真实模式为true。正式工作台已接入真实动画、源码/变量与辅导，独立聊天页保留；07练习/记录已接入本分支工作台；知识接口已支持按问题查询verified知识卡，见[检索说明](backend/src/knowledge/README.md)。检查结束后在运行 `npm start` 的窗口按 Ctrl+C 停止服务。
 
 可在服务运行时验证完整轨迹：
 
