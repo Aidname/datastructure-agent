@@ -1,111 +1,127 @@
-import http from 'http';
-import { URL } from 'url';
-import { handleAgentExplain } from './agent/explain.mjs';
+import { createServer } from 'node:http';
+import { readFile } from 'node:fs/promises';
+import { dirname, extname, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { handleCreateRun, handleGetRun, handleGetStep } from './routes/runs.js';
+import { handleGetExercises, handleCheckExercise } from './routes/exercises.js';
 
-const PORT = process.env.PORT || 3000;
+const here = dirname(fileURLToPath(import.meta.url));
+const frontendRoot = resolve(here, '../../frontend');
+const mime = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json', '.svg': 'image/svg+xml' };
 
-function parseBody(req) {
-  return new Promise((resolve, reject) => {
-    let body = '';
-    req.on('data', chunk => {
-      body += chunk.toString();
-      // 限制10KB
-      if (body.length > 10240) {
-        reject(new Error('请求体过大'));
-      }
-    });
-    req.on('end', () => resolve(body));
-    req.on('error', reject);
-  });
+function json(response, code, value) {
+  response.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' });
+  response.end(JSON.stringify(value));
 }
 
-const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host}`);
-  const pathname = url.pathname;
-
-  // CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    res.writeHead(200);
-    res.end();
-    return;
+// 修复审查意见：按字节限制请求体大小（10KB）
+async function readBody(request) {
+  let size = 0;
+  const chunks = [];
+  for await (const chunk of request) {
+    size += chunk.length;
+    if (size > 10240) {
+      throw new Error('BODY_TOO_LARGE');
+    }
+    chunks.push(chunk);
   }
+  return Buffer.concat(chunks).toString('utf8');
+}
 
-  // 健康检查
-  if (pathname === '/api/health' && req.method === 'GET') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok' }));
-    return;
-  }
+const server = createServer(async (request, response) => {
+  try {
+    const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
+    const method = request.method;
 
-  // 创建 run
-  if (pathname === '/api/algorithms/binary-search/runs' && req.method === 'POST') {
+    // 1. 健康检查
+    if (pathname === '/api/health' && method === 'GET') {
+      return json(response, 200, { ok: true, stage: 'scaffold', implemented: ['static-page', 'health', 'runs', 'exercises'], modelCallsEnabled: false });
+    }
+
+    // 2. 04 的运行路由
+    if (pathname === '/api/algorithms/binary-search/runs' && method === 'POST') {
+      const body = await readBody(request);
+      return handleCreateRun(request, response, body);
+    }
+
+    const stepMatch = pathname.match(/^\/api\/runs\/([^/]+)\/steps\/(\d+)$/);
+    if (stepMatch && method === 'GET') {
+      return handleGetStep(request, response, stepMatch[1], stepMatch[2]);
+    }
+
+    const runMatch = pathname.match(/^\/api\/runs\/([^/]+)$/);
+    if (runMatch && method === 'GET') {
+      return handleGetRun(request, response, runMatch[1]);
+    }
+
+    // 3. 04 的题目与判分路由
+    if (pathname === '/api/exercises' && method === 'GET') {
+      return handleGetExercises(request, response);
+    }
+    if (pathname === '/api/exercises/check' && method === 'POST') {
+      const body = await readBody(request);
+      return handleCheckExercise(request, response, body);
+    }
+
+   // 4. 05 的 Agent 解释路由
+    if (pathname === '/api/agent/explain' && method === 'POST') {
+      // 无配置默认503（需 AGENT_MOCK=true 显式开启）
+      if (process.env.AGENT_MOCK !== 'true') {
+        request.resume();
+        return json(response, 503, { error: { code: 'MODEL_NOT_CONFIGURED', message: '模型未配置，不影响算法和判分。开发阶段请设置 AGENT_MOCK=true 启用 Mock 模式。' } });
+      }
+      try {
+        const body = await readBody(request);
+        const input = body ? JSON.parse(body) : {};
+        const { handleAgentExplain } = await import('./agent/explain.mjs');
+        const result = await handleAgentExplain(input);
+        return json(response, result.status, result.body);
+      } catch (err) {
+        request.resume();
+        return json(response, 400, { error: { code: 'INVALID_REQUEST', message: '请求体格式错误', detail: err.message } });
+      }
+    }
+
+    // 5. 其他尚未实现的计划路由
+    const plannedRoutes = [
+      ['GET', /^\/api\/knowledge\/cards$/, 'M06']
+    ];
+
+    const planned = plannedRoutes.find(([m, pattern]) => m === method && pattern.test(pathname));
+    if (planned) {
+      request.resume();
+      return json(response, 501, { error: { code: 'NOT_IMPLEMENTED', message: '当前仅为协作骨架，业务功能待实现。', owner: planned[2] } });
+    }
+
+    // 6. 静态文件处理
+    if (pathname.startsWith('/api/')) return json(response, 404, { error: { code: 'NOT_FOUND', message: '接口不存在。' } });
+    if (!['GET', 'HEAD'].includes(method)) return json(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持。' } });
+    const file = resolve(frontendRoot, '.' + (pathname === '/' ? '/index.html' : pathname));
+    if (!file.startsWith(frontendRoot + sep)) return json(response, 403, { error: { code: 'FORBIDDEN', message: '路径不允许。' } });
+    const type = mime[extname(file)];
+    if (!type) return json(response, 404, { error: { code: 'NOT_FOUND', message: '文件不存在。' } });
     try {
-      const body = await parseBody(req);
-      handleCreateRun(req, res, body);
-    } catch (err) {
-      res.writeHead(413, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: { code: 'PAYLOAD_TOO_LARGE', message: err.message } }));
+      const body = await readFile(file);
+      response.writeHead(200, { 'Content-Type': type + '; charset=utf-8' });
+      response.end(method === 'HEAD' ? undefined : body);
+    } catch (error) {
+      if (['ENOENT', 'EISDIR', 'ENOTDIR'].includes(error.code)) return json(response, 404, { error: { code: 'NOT_FOUND', message: '文件不存在。' } });
+      throw error;
     }
-    return;
-  }
-
-  // 获取 run
-  if (pathname.match(/^\/api\/runs\/[^/]+\/?$/) && req.method === 'GET') {
-    const runId = pathname.split('/')[3];
-    handleGetRun(req, res, runId);
-    return;
-  }
-
-  // 获取 step
-  if (pathname.match(/^\/api\/runs\/[^/]+\/steps\/\d+\/?$/) && req.method === 'GET') {
-    const parts = pathname.split('/');
-    const runId = parts[3];
-    const stepIndex = parts[5];
-    handleGetStep(req, res, runId, stepIndex);
-    return;
-  }
-
-  // Agent explain
-  if (pathname === '/api/agent/explain' && req.method === 'POST') {
-    // P2: Mock需显式开启
-    if (process.env.AGENT_MOCK !== 'true') {
-      res.writeHead(503, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        error: {
-          code: 'MODEL_NOT_CONFIGURED',
-          message: '模型未配置。开发阶段请设置 AGENT_MOCK=true 启用 Mock 模式。'
-        }
-      }));
-      return;
+  } catch (error) {
+    if (error.message === 'BODY_TOO_LARGE') {
+      return json(response, 400, { error: { code: 'INVALID_INPUT', message: '请求体超过 10KB 限制' } });
     }
-
-    try {
-      const body = await parseBody(req);
-      const input = body ? JSON.parse(body) : {};
-      const result = await handleAgentExplain(input);
-
-      res.writeHead(result.status, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(result.body));
-    } catch (err) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        error: { code: 'BAD_REQUEST', message: '请求体格式错误', detail: err.message }
-      }));
-    }
-    return;
+    console.error(error);
+    json(response, 400, { error: { code: 'INVALID_REQUEST', message: '请求无法处理。' } });
   }
-
-  // 404
-  res.writeHead(404, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ error: { code: 'NOT_FOUND', message: '接口不存在' } }));
 });
 
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Mock mode: ${process.env.AGENT_MOCK === 'true' ? 'ENABLED' : 'DISABLED (set AGENT_MOCK=true to enable)'}`);
+const port = Number(process.env.PORT ?? 3000);
+if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('PORT must be an integer between 0 and 65535');
+server.listen(port, process.env.HOST ?? '127.0.0.1', () => {
+  console.log(`Scaffold running at http://${process.env.HOST ?? '127.0.0.1'}:${server.address().port}`);
 });
+server.on('error', (error) => { console.error(`Server startup failed: ${error.code}`); process.exitCode = 1; });
+for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => server.close());
