@@ -1,28 +1,8 @@
-import { readFileSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
 import { getRun } from '../runs/store.js';
 import { checkRateLimit, reserveModelCall, finishModelCall, recordMockCall } from './rate-limit.js';
 import { guardOutput, verifyOutput } from './output-guard.js';
 import { buildPrompt } from './prompt.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const cardsPath = resolve(__dirname, '../../../content/knowledge/cards.json');
-
-let cardMap = null;
-function loadCards() {
-  if (cardMap) return cardMap;
-  try {
-    const raw = readFileSync(cardsPath, 'utf8');
-    const cards = JSON.parse(raw);
-    cardMap = {};
-    for (const c of cards) cardMap[c.id] = c;
-    return cardMap;
-  } catch {
-    cardMap = {};
-    return cardMap;
-  }
-}
+import { retrieveKnowledge, loadKnowledgeCards, verifiedCards, sourceRef, isStepQuestion } from '../knowledge/retrieve.js';
 
 function pickCardId(ev) {
   if (ev === 'probe') return 'bs-k03';
@@ -80,8 +60,8 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
   }
   const idx = stepIndex; // 直接用原值，不再 Number()
 
-  if (typeof question !== 'string' || !question.trim()) {
-    return { status: 400, body: { error: { code: 'INVALID_INPUT', message: 'question 必须为非空字符串' } } };
+  if (typeof question !== 'string' || !question.trim() || question.length > 2000) {
+    return { status: 400, body: { error: { code: 'INVALID_INPUT', message: 'question 必须为1至2000字符的非空字符串' } } };
   }
 
   const level = hintLevel === undefined ? 1 : hintLevel;
@@ -128,8 +108,23 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
 
   // 检索已核验知识卡
   const cardId = pickCardId(ev);
-  const candidate = loadCards()[cardId];
-  const card = candidate?.verified === true ? candidate : null;
+  let selectedCards, retrieval;
+  try {
+    const catalog = loadKnowledgeCards();
+    const topicId = run.algorithm;
+    const contextCard = verifiedCards(topicId, catalog).find(item => item.id === cardId);
+    const result = retrieveKnowledge(question, topicId, { cards: catalog, limit: 2 });
+    const generic = isStepQuestion(question);
+    if (generic) { result.cards = []; result.matches = []; }
+    selectedCards = [...result.cards];
+    if ((selectedCards.length || generic) && contextCard && !selectedCards.some(item => item.id === contextCard.id)) selectedCards.push(contextCard);
+    retrieval = { method: result.method, status: result.cards.length ? 'matched' : selectedCards.length ? 'step-context' : 'no-match',
+      matchedCardIds: result.cards.map(item => item.id), contextCardId: selectedCards.some(item => item.id === cardId) ? cardId : null,
+      matches: result.matches.map(({card,score,matchedTerms}) => ({cardId:card.id,score,matchedTerms})) };
+  } catch {
+    return { status: 503, body: { error: { code: 'KNOWLEDGE_UNAVAILABLE', message: '已核验知识资料暂不可用，请稍后重试' } } };
+  }
+  const refs = selectedCards.map(sourceRef);
 
   // ===== 无关问题处理 =====
   if (isIrrelevantQuestion(question)) {
@@ -138,11 +133,20 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
       body: {
         runId, stepIndex: idx,
         answer: `你的问题「${question}」与当前二分查找步骤无关。我专注于帮你理解这一步发生了什么——比如「为什么 mid 是这样算的？」或「下一步为什么更新左边界？」。`,
-        stepRefs: [{ runId, stepIndex: idx, event: ev, left, right, mid, knowledgeCard: cardId }],
-        sourceRefs: [],
+        hintLevel: level,
+        stepRefs: [{ runId, stepIndex: idx, event: ev, left, right, mid }],
+        sourceRefs: [], knowledgeUsed: false, retrieval: { method: retrieval.method, status: 'irrelevant', matchedCardIds: [], contextCardId: null, matches: [] },
         usage: { model: 'mock', cost: 0, mock: true, irrelevant: true }
       }
     };
+  }
+
+  if (!selectedCards.length) {
+    if (mode === 'real') recordMockCall(req, bodySessionId);
+    return { status: 200, body: { runId, stepIndex: idx, hintLevel: level,
+      answer: '当前已核验知识卡中没有找到与你的问题匹配的资料，暂不能给出有资料依据的解释。当前真实步骤为 ' + ev + '，区间 [' + left + ', ' + right + ']。请补充与二分查找有关的具体问题。',
+      stepRefs: [{ runId, stepIndex: idx, event: ev, left, right, mid }], sourceRefs: [], knowledgeUsed: false, retrieval,
+      usage: { model: 'local', cost: 0, mock: true, insufficientKnowledge: true } } };
   }
 
   // ===== 真实模型模式 =====
@@ -152,7 +156,7 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
     try {
       const { DeepSeekProvider } = await import('./providers/deepseek.js');
       const provider = new DeepSeekProvider();
-      const messages = buildPrompt(run, step, level, question, card);
+      const messages = buildPrompt(run, step, level, question, selectedCards);
       const maxTokens = 1024;
       const maximumTokens = Buffer.byteLength(JSON.stringify(messages), 'utf8') + maxTokens + 256;
       const allocation = reserveModelCall(req, bodySessionId, maximumTokens);
@@ -166,9 +170,9 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
       const guard = guardOutput(result.content);
       let finalAnswer = guard.valid ? result.content : (guard.truncated || '请重新思考：当前 mid 与目标值比较，下一步应该往哪边找？');
 
-      if (card) {
+      for (const card of selectedCards) {
         const vr = verifyOutput(finalAnswer, card);
-        if (!vr.pass) finalAnswer = vr.suggestion;
+        if (!vr.pass) { finalAnswer = vr.suggestion; break; }
       }
 
       finishModelCall(receipt, { tokens: result.usage?.totalTokens ?? null, cost: result.cost ?? null, elapsedMs });
@@ -179,10 +183,11 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
           runId,
           stepIndex: idx,
           hintLevel: level,
-          answer: finalAnswer + cardText(card),
-          stepRefs: [{ runId, stepIndex: idx, event: ev, left, right, mid, knowledgeCard: cardId, array: arr.length <= 20 ? arr : undefined, target }],
-          sourceRefs: card ? [{ cardId: card.id || cardId, title: card.title || '', sourceId: card.sourceId || null, sourceType: card.sourceType || null, chapter: card.chapter ?? null, pages: card.pages ?? null, version: card.version, verified: card.verified }] : [],
-          knowledgeUsed: !!card,
+          answer: finalAnswer + selectedCards.map(cardText).join(''),
+          stepRefs: [{ runId, stepIndex: idx, event: ev, left, right, mid, knowledgeCard: retrieval.contextCardId, array: arr.length <= 20 ? arr : undefined, target }],
+          sourceRefs: refs,
+      retrieval,
+          knowledgeUsed: selectedCards.length > 0,
           usage: {
             model: result.model || 'deepseek-chat',
             cost: result.cost ?? null,
@@ -247,7 +252,7 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
     answer += `。目标 ${target}。${next}`;
   }
 
-  answer += cardText(card);
+  answer += selectedCards.map(cardText).join('');
 
   return {
     status: 200,
@@ -256,9 +261,10 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
       stepIndex: idx,
       hintLevel: level,
       answer,
-      stepRefs: [{ runId, stepIndex: idx, event: ev, left, right, mid, knowledgeCard: cardId, array: arr.length <= 20 ? arr : undefined, target }],
-      sourceRefs: card ? [{ cardId: card.id || cardId, title: card.title || '', sourceId: card.sourceId || null, sourceType: card.sourceType || null, chapter: card.chapter ?? null, pages: card.pages ?? null, version: card.version, verified: card.verified }] : [],
-      knowledgeUsed: !!card,
+      stepRefs: [{ runId, stepIndex: idx, event: ev, left, right, mid, knowledgeCard: retrieval.contextCardId, array: arr.length <= 20 ? arr : undefined, target }],
+      sourceRefs: refs,
+          retrieval,
+      knowledgeUsed: selectedCards.length > 0,
       usage: { model: 'mock', cost: 0, mock: true }
     }
   };

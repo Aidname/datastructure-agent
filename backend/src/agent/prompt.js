@@ -13,14 +13,11 @@ export function buildPrompt(run, step, level, question, card) {
       ? '详细分析：解释这一步为什么这样更新，引导学生自己推理'
       : '完整推理链：给出推理过程并对下一步做出预测，但仍不直接给出最终答案';
 
-  const cardBlock = card ? `
-【本轮必须依据的知识卡】
-- 卡片ID：${card.id}（已核验，版本 ${card.version}）
-- 标题：${card.title}
-- 内容：${card.content}
-- 来源：${card.sourceId}
-请以上述卡片内容为准进行讲解。若卡片内容与你的常识有出入，以卡片为准。
-` : '【本轮无可用知识卡，仅基于步骤客观数据回答，并明确说明依据是步骤快照而非外部资料】';
+  const cards = Array.isArray(card) ? card : card ? [card] : [];
+  const cardBlock = cards.length ? '【本轮提供的已核验知识卡】\n' + cards.map(item =>
+    '- 卡片ID：' + item.id + '（版本 ' + item.version + '）\n- 标题：' + item.title + '\n- 内容：' + item.content + '\n- 来源：' + item.sourceId
+  ).join('\n\n') + '\n优先回答学生问题，结合当前真实步骤。不要把不同卡片中的示例误当成当前运行。若资料不足请明确说明，不要编造。'
+    : '【本轮无可用知识卡，仅可说明客观步骤状态，不得编造资料或出处】';
 
   const userContent = `你是二分查找辅导助手。学生正在学习二分查找算法。
 

@@ -3,6 +3,8 @@ const original = globalThis.fetch;
 globalThis.fetch = async (url, options) => {
   if (!String(url).startsWith('https://api.deepseek.com/')) return original(url, options);
   const content = JSON.parse(options.body).messages.at(-1).content;
+  if (content.includes('红黑树')) throw new Error('Unexpected model call for unmatched knowledge');
+  if (content.includes('TEST_RETRIEVAL') && (!content.includes('卡片ID：bs-k01') || !content.includes('卡片ID：bs-k03'))) throw new Error('Missing retrieved/context card in prompt');
   if (content.includes('TEST_TIMEOUT_BODY')) return { ok: true, json: () => new Promise((_, reject) => {
     options.signal.addEventListener('abort', () => reject(Object.assign(new Error('abort'), { name: 'AbortError' })), { once: true });
   }) };
