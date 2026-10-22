@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import { handleCreateRun, handleGetRun, handleGetStep } from './routes/runs.js';
 import { handleGetExercises, handleCheckExercise } from './routes/exercises.js';
-import { checkRateLimit } from './agent/rate-limit.js';
+import { checkRateLimit, checkBudget, consumeTokens, getUsage } from './agent/rate-limit.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const frontendRoot = resolve(here, '../../frontend');
@@ -16,19 +16,19 @@ function json(response, code, value) {
   response.end(JSON.stringify(value));
 }
 
-// 按字节限制请求体大小（10KB），最后统一UTF-8解码
 async function readBody(request) {
   let size = 0;
   const chunks = [];
   for await (const chunk of request) {
     size += chunk.length;
-    if (size > 10240) {
-      throw new Error('BODY_TOO_LARGE');
-    }
+    if (size > 10240) throw new Error('BODY_TOO_LARGE');
     chunks.push(chunk);
   }
   return Buffer.concat(chunks).toString('utf8');
 }
+
+const hasRealModel = Boolean(process.env.DEEPSEEK_API_KEY);
+const mockEnabled = process.env.AGENT_MOCK === 'true';
 
 const server = createServer(async (request, response) => {
   try {
@@ -37,10 +37,16 @@ const server = createServer(async (request, response) => {
 
     // 1. 健康检查
     if (pathname === '/api/health' && method === 'GET') {
-      return json(response, 200, { ok: true, stage: 'scaffold', implemented: ['static-page', 'health', 'runs', 'exercises'], modelCallsEnabled: false });
+      return json(response, 200, {
+        ok: true,
+        stage: 'scaffold',
+        implemented: ['static-page', 'health', 'runs', 'exercises', 'agent'],
+        modelCallsEnabled: hasRealModel,
+        mode: hasRealModel ? 'deepseek' : (mockEnabled ? 'mock' : 'disabled')
+      });
     }
 
-    // 2. 04 的运行路由
+    // 2. 04 运行路由
     if (pathname === '/api/algorithms/binary-search/runs' && method === 'POST') {
       const body = await readBody(request);
       return handleCreateRun(request, response, body);
@@ -56,7 +62,7 @@ const server = createServer(async (request, response) => {
       return handleGetRun(request, response, runMatch[1]);
     }
 
-    // 3. 04 的题目与判分路由
+    // 3. 04 题目与判分路由
     if (pathname === '/api/exercises' && method === 'GET') {
       return handleGetExercises(request, response);
     }
@@ -65,60 +71,58 @@ const server = createServer(async (request, response) => {
       return handleCheckExercise(request, response, body);
     }
 
-    // 4. 05 Agent 解释路由（开发期 Mock；生产仍 503）
+    // 4. 05 Agent 解释路由
     if (pathname === '/api/agent/explain' && method === 'POST') {
-      // ===== 新增：限流检查（仅 RATE_LIMIT=true 时启用） =====
-      if (process.env.RATE_LIMIT === 'true') {
-        const limiterKey = request.headers['x-session-id'] || request.socket.remoteAddress;
-        const limitResult = checkRateLimit(limiterKey);
-        if (!limitResult.allowed) {
-          request.resume();
-          return json(response, 429, {
-            error: { code: 'RATE_LIMIT_EXCEEDED', message: '请求过于频繁，请稍后再试', retryAfter: Math.ceil(limitResult.resetIn / 1000) }
-          });
-        }
-      }
-
-      if (process.env.AGENT_MOCK !== 'true') {
-        request.resume();
-        return json(response, 503, {
-          error: {
-            code: 'MODEL_NOT_CONFIGURED',
-            message: '模型未配置，不影响算法和判分。开发阶段请设置 AGENT_MOCK=true 启用 Mock 模式。'
-          }
-        });
-      }
-      try {
-        const body = await readBody(request);
-        let input = {};
+      if (hasRealModel) {
         try {
-          input = body ? JSON.parse(body) : {};
-        } catch {
-          return json(response, 400, { error: { code: 'INVALID_INPUT', message: '请求体不是合法 JSON' } });
+          const body = await readBody(request);
+          let input = {};
+          try { input = body ? JSON.parse(body) : {}; } catch {
+            return json(response, 400, { error: { code: 'INVALID_INPUT', message: '请求体不是合法 JSON' } });
+          }
+          const { handleAgentExplain } = await import('./agent/explain.mjs');
+          const result = await handleAgentExplain(input, { mode: 'real', req: request });
+          return json(response, result.status, result.body);
+        } catch (err) {
+          if (err.message === 'BODY_TOO_LARGE') throw err;
+          if (err.message === 'MODEL_TIMEOUT') {
+            return json(response, 504, { error: { code: 'MODEL_TIMEOUT', message: '模型响应超时，请稍后重试' } });
+          }
+          return json(response, 502, { error: { code: 'MODEL_CALL_FAILED', message: '模型调用失败', detail: err.message } });
         }
-        const { handleAgentExplain } = await import('./agent/explain.mjs');
-        const result = await handleAgentExplain(input);
-        return json(response, result.status, result.body);
-      } catch (err) {
-        request.resume();
-        // 与运行/判分接口共用请求大小错误处理，保留400 INVALID_INPUT契约。
-        if (err.message === 'BODY_TOO_LARGE') throw err;
-        return json(response, 400, { error: { code: 'INVALID_INPUT', message: 'Agent 请求处理失败' } });
       }
+
+      if (mockEnabled) {
+        try {
+          const body = await readBody(request);
+          let input = {};
+          try { input = body ? JSON.parse(body) : {}; } catch {
+            return json(response, 400, { error: { code: 'INVALID_INPUT', message: '请求体不是合法 JSON' } });
+          }
+          const { handleAgentExplain } = await import('./agent/explain.mjs');
+          const result = await handleAgentExplain(input, { mode: 'mock', req: request });
+          return json(response, result.status, result.body);
+        } catch (err) {
+          if (err.message === 'BODY_TOO_LARGE') throw err;
+          return json(response, 400, { error: { code: 'INVALID_INPUT', message: 'Agent 请求处理失败' } });
+        }
+      }
+
+      return json(response, 503, {
+        error: {
+          code: 'MODEL_NOT_CONFIGURED',
+          message: '模型未配置。请设置 AGENT_MOCK=true 启用 Mock 模式，或配置 DEEPSEEK_API_KEY 启用真实模型。'
+        }
+      });
     }
 
-    // 5. 其他尚未实现的计划路由
-    const plannedRoutes = [
-      ['GET', /^\/api\/knowledge\/cards$/, 'M06']
-    ];
-
-    const planned = plannedRoutes.find(([m, pattern]) => m === method && pattern.test(pathname));
-    if (planned) {
-      request.resume();
-      return json(response, 501, { error: { code: 'NOT_IMPLEMENTED', message: '当前仅为协作骨架，业务功能待实现。', owner: planned[2] } });
+    // 5. 用量查询接口
+    if (pathname === '/api/agent/usage' && method === 'GET') {
+      const bodySessionId = request.headers['x-session-id'];
+      return json(response, 200, { ok: true, ...getUsage(request, bodySessionId) });
     }
 
-    // 6. 静态文件处理
+    // 6. 静态文件
     if (pathname.startsWith('/api/')) return json(response, 404, { error: { code: 'NOT_FOUND', message: '接口不存在。' } });
     if (!['GET', 'HEAD'].includes(method)) return json(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持。' } });
     const file = resolve(frontendRoot, '.' + (pathname === '/' ? '/index.html' : pathname));
