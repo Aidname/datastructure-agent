@@ -88,7 +88,10 @@ const server = createServer(async (request, response) => {
         return json(response, result.status, result.body);
       } catch (err) {
         request.resume();
-        return json(response, 400, { error: { code: 'INVALID_REQUEST', message: 'Agent 请求处理失败', detail: err.message } });
+        if (err.message === 'BODY_TOO_LARGE') {
+          return json(response, 400, { error: { code: 'INVALID_INPUT', message: '请求体超过 10KB 限制' } });
+        }
+        return json(response, 400, { error: { code: 'INVALID_INPUT', message: 'Agent 请求处理失败', detail: err.message } });
       }
     }
 
@@ -120,7 +123,7 @@ const server = createServer(async (request, response) => {
     }
   } catch (error) {
     if (error.message === 'BODY_TOO_LARGE') {
-      return json(response, 413, { error: { code: 'PAYLOAD_TOO_LARGE', message: '请求体超过 10KB 限制' } });
+      return json(response, 400, { error: { code: 'INVALID_INPUT', message: '请求体超过 10KB 限制' } });
     }
     console.error(error);
     json(response, 400, { error: { code: 'INVALID_REQUEST', message: '请求无法处理。' } });
