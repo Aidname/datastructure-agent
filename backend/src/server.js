@@ -27,8 +27,9 @@ async function readBody(request) {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-const hasRealModel = Boolean(process.env.DEEPSEEK_API_KEY);
+// ===== P1 FIX: AGENT_MOCK 显式优先 =====
 const mockEnabled = process.env.AGENT_MOCK === 'true';
+const hasRealModel = !mockEnabled && Boolean(process.env.DEEPSEEK_API_KEY);
 
 const server = createServer(async (request, response) => {
   try {
@@ -42,7 +43,7 @@ const server = createServer(async (request, response) => {
         stage: 'scaffold',
         implemented: ['static-page', 'health', 'runs', 'exercises', 'agent'],
         modelCallsEnabled: hasRealModel,
-        mode: hasRealModel ? 'deepseek' : (mockEnabled ? 'mock' : 'disabled')
+        mode: mockEnabled ? 'mock' : (hasRealModel ? 'deepseek' : 'disabled')
       });
     }
 
@@ -73,6 +74,23 @@ const server = createServer(async (request, response) => {
 
     // 4. 05 Agent 解释路由
     if (pathname === '/api/agent/explain' && method === 'POST') {
+      // P1 FIX: mockEnabled 优先，即使有 Key 也走 mock
+      if (mockEnabled) {
+        try {
+          const body = await readBody(request);
+          let input = {};
+          try { input = body ? JSON.parse(body) : {}; } catch {
+            return json(response, 400, { error: { code: 'INVALID_INPUT', message: '请求体不是合法 JSON' } });
+          }
+          const { handleAgentExplain } = await import('./agent/explain.mjs');
+          const result = await handleAgentExplain(input, { mode: 'mock', req: request });
+          return json(response, result.status, result.body);
+        } catch (err) {
+          if (err.message === 'BODY_TOO_LARGE') throw err;
+          return json(response, 400, { error: { code: 'INVALID_INPUT', message: 'Agent 请求处理失败' } });
+        }
+      }
+
       if (hasRealModel) {
         try {
           const body = await readBody(request);
@@ -92,22 +110,6 @@ const server = createServer(async (request, response) => {
         }
       }
 
-      if (mockEnabled) {
-        try {
-          const body = await readBody(request);
-          let input = {};
-          try { input = body ? JSON.parse(body) : {}; } catch {
-            return json(response, 400, { error: { code: 'INVALID_INPUT', message: '请求体不是合法 JSON' } });
-          }
-          const { handleAgentExplain } = await import('./agent/explain.mjs');
-          const result = await handleAgentExplain(input, { mode: 'mock', req: request });
-          return json(response, result.status, result.body);
-        } catch (err) {
-          if (err.message === 'BODY_TOO_LARGE') throw err;
-          return json(response, 400, { error: { code: 'INVALID_INPUT', message: 'Agent 请求处理失败' } });
-        }
-      }
-
       return json(response, 503, {
         error: {
           code: 'MODEL_NOT_CONFIGURED',
@@ -116,10 +118,13 @@ const server = createServer(async (request, response) => {
       });
     }
 
-    // 5. 用量查询接口
+    // 5. 用量查询接口 —— P5 FIX: 支持 ?sessionId=xxx 查询参数
     if (pathname === '/api/agent/usage' && method === 'GET') {
-      const bodySessionId = request.headers['x-session-id'];
-      return json(response, 200, { ok: true, ...getUsage(request, bodySessionId) });
+      const url = new URL(request.url, 'http://localhost');
+      const querySessionId = url.searchParams.get('sessionId');
+      const headerSessionId = request.headers['x-session-id'];
+      const sessionId = querySessionId || headerSessionId || 'anon';
+      return json(response, 200, { ok: true, ...getUsage(request, sessionId) });
     }
 
     // 6. 静态文件
