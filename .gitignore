@@ -10,5 +10,6 @@ dist/
 Thumbs.db
 .idea/
 .vscode/
+.vs/
 data/private/
 artifacts/local/

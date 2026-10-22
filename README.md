@@ -2,7 +2,7 @@
 
 **看懂每一步：数据结构与算法可视化学习助手。**
 
-当前分支已接入04的真实二分查找run、03动画/播放、源码高亮与变量，以及05步骤辅导和按问题知识检索。正常启动后直接访问工作台。06已提供10张自编知识卡和10题，09需求/原型/图表已合并。本分支已补齐07固定过程题、三级提示、错题重练和本机学习记录，可在无模型Key时使用；本地功能检查通过，真实模型效果、真实调研与08独立验收仍待完成。工作台状态和检查见[接入说明](frontend/src/features/workbench/README.md)、[工作台验收](docs/architecture/workbench-check-20261022.md)与[07代码验收](docs/architecture/exercises-check-20261023.md)。
+截至2026-10-23，main已合并PR #21，已接入04的真实二分查找run、03动画/播放、源码高亮与变量，以及05步骤辅导和按问题知识检索。正常启动后直接访问工作台。06已提供10张自编知识卡和10题，09需求/原型/图表已合并。07已补齐固定过程题、三级提示、错题重练和本机学习记录，可在无模型Key时使用；本地功能检查通过，真实模型效果、真实调研与08独立验收仍待完成。工作台状态和检查见[接入说明](frontend/src/features/workbench/README.md)、[工作台验收](docs/architecture/workbench-check-20261022.md)与[07代码验收](docs/architecture/exercises-check-20261023.md)。
 
 ## 从哪里开始
 
@@ -47,7 +47,7 @@ npm start
 Invoke-RestMethod http://127.0.0.1:3000/api/health
 ```
 
-当前预期为 `ok=true`、`stage=scaffold`、`implemented` 包含 `static-page/health/runs/exercises/agent/knowledge`。mode为disabled/mock/deepseek，modelCallsEnabled只在真实模式为true。正式工作台已接入真实动画、源码/变量与辅导，独立聊天页保留；07练习/记录已接入本分支工作台；知识接口已支持按问题查询verified知识卡，见[检索说明](backend/src/knowledge/README.md)。检查结束后在运行 `npm start` 的窗口按 Ctrl+C 停止服务。
+当前预期为 `ok=true`、`stage=scaffold`、`implemented` 包含 `static-page/health/runs/exercises/agent/knowledge`。mode为disabled/mock/deepseek，modelCallsEnabled只在真实模式为true。正式工作台已接入真实动画、源码/变量与辅导，独立聊天页保留；07练习/记录已接入正式工作台；知识接口已支持按问题查询verified知识卡，见[检索说明](backend/src/knowledge/README.md)。检查结束后在运行 `npm start` 的窗口按 Ctrl+C 停止服务。
 
 可在服务运行时验证完整轨迹：
 
@@ -61,6 +61,10 @@ Invoke-RestMethod http://127.0.0.1:3000/api/exercises
 标准案例为5步、result=3；详细输入上限、返回字段及提示响应见[API契约](docs/architecture/api-contract.md)。
 
 2026-10-14 的本地核验通过静态检查、页面及健康接口检查，详见 [接手核验记录](docs/architecture/takeover-check.md)。这次启动核验由 Codex 在本地副本完成；另一位队员从干净副本启动的验收仍待进行。
+
+## 开发检查
+
+日常运行npm run check、npm test；引擎/接口完整检查运行npm run test:backend，资料校验运行npm run check:content。浏览器回归需要本机Playwright及Edge，命令、覆盖范围和证据入口见[测试说明](tests/README.md)。这些脚本保留用于08独立复核和后续修复回归。
 
 ## 09原型预览
 
@@ -96,7 +100,7 @@ frontend/              HTML、CSS、浏览器 JavaScript
 backend/src/           Node.js 服务、算法、状态、Agent 与检索模块
 shared/                共享数据格式、样例、C/C++ 展示代码目录
 content/               知识卡、题目、出处、覆盖表
-tests/                 后续测试与验收证据目录
+tests/                 可重复运行的单元、接口及浏览器回归
 docs/team/             十人分工、登记、个人任务单
 docs/architecture/     模块边界、接口、状态约定
 docs/product/          范围、需求v0.9、覆盖规划与设计核验

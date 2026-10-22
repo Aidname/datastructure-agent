@@ -19,33 +19,9 @@
  *   全部动效都是渐进增强：缺少 getBoundingClientRect / animate / matchMedia 时自动跳过，
  *   渲染结果不变（Node 下的自检环境就是这种情况）。
  *
- * ================= [before it happens] 尚未接入的依赖 =================
- * [before it happens] 真实轨迹：目前只能吃 frontend/src/features/visualization/fixtures/
- *   mock-runs.json 里的【模拟步骤】。04 交付 backend/src/algorithms 与
- *   POST /api/algorithms/binary-search/runs 后，必须换成真实 steps（由 02 的服务层注入），
- *   并删除模拟数据依赖、把录屏换成真实运行版本。
- * [before it happens] 正式挂载点：正式入口由 02 的 frontend/index.html（#visualization-panel）装配。
- *   现在只有本目录的 dev.html 开发自测页；本模块不改 02 的 index.html / app.js / styles。
- * [before it happens] C06 接口确认：createVisualization(container, { run }) → { showStep, getStep,
- *   destroy, playEnterAnimation } 目前是 03 的单方提案，仍待 02 确认
- *   （docs/architecture/contract-alignment.md C06）。确认前函数名与签名可能变。
- * [before it happens] 代码行高亮与 left/right/mid 变量面板属 02 主责，本模块【不代画】；
- *   02 需要自己订阅播放广播后渲染。转场说明文本本模块已提供 describeTransition()，02 若要复用可直接调用。
- *
- * ================= [02 unsupports] 02 尚未提供的接口 =================
- * 下面这些都不是 03 能替 02 决定的，本模块只留好接缝、不自行发明实现。
- * [02 unsupports] 正式挂载点：02 的 frontend/index.html + app.js 里还没有本模块的容器
- *   （约定名 #visualization-panel 也只是 03 的提案），也没有"装配/卸载可视化模块"的入口。
- *   现状：只有本目录 dev.html / dev-morph.html 两个开发页在自测。
- * [02 unsupports] run 的创建与生命周期：03 不调创建接口、不产生 runId。
- *   现在由开发页直接读 fixtures/mock-runs.json；正式应由 02 调 04 的
- *   POST /api/algorithms/binary-search/runs 拿到 { runId, steps, sourceLines, result } 再传进来。
- * [02 unsupports] 步骤广播：02 还没有把 runId + stepIndex 通知给代码面板 / 05 / 07 的统一接口
- *   或事件总线（contract-alignment.md C06 仍是"待提案与联调，不单方规定函数或事件总线"）。
- *   本模块只暴露 onStepChange 回调，广播由 02 的装配层负责。
- * [02 unsupports] 代码面板与变量面板：lineId 高亮、left/right/mid（null 显示"未计算"）属 02 主责。
- *   开发页里那一份只是 03 为了自测做的替身，正式页面请 02 自行实现，不要依赖本目录的 dev-*。
- * =====================================================================
+ * 当前由正式工作台注入04真实run/steps；装配层负责初始步骤分发、上下文同步及换run销毁。
+ * createPlayback仅回调创建者；工作台通过subscribeStep转发给05/07。
+ * 接入方式见本模块README及visualization/C02-INTEGRATION.md。
  */
 
 /** 事件名 → 给学生看的展示文本（move-left 表示"更新左边界"，不是箭头方向）。 */
@@ -284,7 +260,7 @@ function buildLegend() {
 
 /**
  * 创建动画渲染器。
- * @param {HTMLElement} container 挂载容器（由 02 提供；dev.html 里是 #viz-host）
+ * @param {HTMLElement} container 挂载容器（正式工作台为 #visualization-panel）
  * @param {object} [options]
  * @param {object} [options.run] 提供 array/target/steps 等上下文
  * @param {boolean} [options.legend=false] 是否在视口里画内联图例。

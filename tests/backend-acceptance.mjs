@@ -1,13 +1,18 @@
 import assert from 'node:assert/strict';
-import { readFile, writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { resolve, dirname } from 'node:path';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 import { Server } from 'node:http';
 import { once } from 'node:events';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 
-const root = resolve(process.argv[2]);
-const reviewedHead = '19a5576657db52826bb6e9de55dd6e5b80eba1b2';
+// Run against this checkout; never overwrite historical audit evidence.
+const root = fileURLToPath(new URL('../', import.meta.url));
+let reviewedHead = null, workingTreeDirty = null;
+try {
+  reviewedHead = execFileSync('git', ['rev-parse', 'HEAD'], {cwd:root, encoding:'utf8', windowsHide:true, stdio:['ignore','pipe','ignore']}).trim();
+  workingTreeDirty = Boolean(execFileSync('git', ['status', '--porcelain', '--untracked-files=no'], {cwd:root, encoding:'utf8', windowsHide:true, stdio:['ignore','pipe','ignore']}).trim());
+} catch { /* Source archives can run the checks without Git metadata. */ }
 const json = async path => JSON.parse(await readFile(resolve(root, path), 'utf8'));
 const engine = await import(pathToFileURL(resolve(root, 'shared/algorithms/binarySearch.js')));
 const schema = await json('shared/schemas/step.schema.json');
@@ -145,6 +150,7 @@ let server;
 const originalListen = Server.prototype.listen;
 Server.prototype.listen = function (...args) { server = this; return originalListen.apply(this, args); };
 process.env.PORT = '0'; process.env.HOST = '127.0.0.1';
+process.env.AGENT_MOCK = 'false'; process.env.DEEPSEEK_API_KEY = '';
 try {
   store = await import(pathToFileURL(resolve(root,'backend/src/runs/store.js')));
   await import(pathToFileURL(resolve(root,'backend/src/server.js')));
@@ -159,7 +165,7 @@ try {
   }
   const invalidResponse = (result, status = 400) => { assert.equal(result.status,status,stringify(result)); assert.ok(result.data.error?.code); assert.equal(typeof result.data.error.message,'string'); };
   await check('主页/脚本/样式及HEAD仍可访问', async () => {
-    for (const path of ['/','/src/app.js','/src/styles/base.css']) assert.equal((await req(path)).status,200);
+    for (const path of ['/','/src/app.js','/src/styles/workbench.css']) assert.equal((await req(path)).status,200);
     const head = await req('/',undefined,{method:'HEAD'}); assert.equal(head.status,200); assert.equal(head.data,'');
     assert.equal((await req('/not-existing.js')).status,404);
     assert.equal((await req('/',{},{})).status,405);
@@ -245,9 +251,11 @@ try {
     const value=await req('/api/exercises/check',{exerciseId:'bs-q01',answer:3,padding:'x'.repeat(100000)});
     assert.ok(value.status>=400,`10万字节额外内容仍HTTP ${value.status}`);
   });
-  await check('模型降级、未实现知识接口与未知API', async () => {
+  await check('模型未配置时明确503，知识目录独立可用，未知API为404', async () => {
     invalidResponse(await req('/api/agent/explain',{runId:'none',stepIndex:0,question:'why',hintLevel:1}),503);
-    assert.equal((await req('/api/knowledge/cards?topicId=binary-search')).status,501);
+    const knowledge = await req('/api/knowledge/cards?topicId=binary-search');
+    assert.equal(knowledge.status,200); assert.ok(knowledge.data.cards.length > 0);
+    assert.ok(knowledge.data.sourceRefs.length > 0);
     assert.equal((await req('/api/unknown')).status,404);
   });
   await check('run查询TTL及每分钟后台清理逻辑', () => {
@@ -273,7 +281,12 @@ await check('执行已有SIGTERM关闭处理后进程自然退出', async () => 
   assert.equal(exitCode,0,`退出码=${exitCode}; ${output.trim()}`);
 });
 
-const summary={reviewedHead,total:results.length,passed:results.filter(result=>result.passed).length,failed:results.filter(result=>!result.passed).length,results};
-await writeFile(new URL('./pr10-full-results.json',import.meta.url),JSON.stringify(summary,null,2),'utf8');
+const summary={reviewedHead,workingTreeDirty,total:results.length,passed:results.filter(result=>result.passed).length,failed:results.filter(result=>!result.passed).length,results};
+if (process.env.TEST_REPORT_PATH) {
+  const reportPath=resolve(process.env.TEST_REPORT_PATH);
+  await mkdir(dirname(reportPath),{recursive:true});
+  await writeFile(reportPath,JSON.stringify(summary,null,2),'utf8');
+}
 for(const result of results)console.log(JSON.stringify(result));
-console.log(`Full review: ${summary.passed}/${summary.total} groups passed; ${summary.failed} failed.`);
+console.log(`Backend acceptance: ${summary.passed}/${summary.total} groups passed; ${summary.failed} failed.`);
+if (summary.failed) process.exitCode = 1;

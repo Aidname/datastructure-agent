@@ -7,7 +7,7 @@ let jsCount = 0;
 let jsonCount = 0;
 async function visit(folder) {
   for (const entry of await readdir(folder, { withFileTypes: true })) {
-    if (['.git', 'node_modules', 'data', 'artifacts'].includes(entry.name)) continue;
+    if (['.git', '.vs', '.vscode', '.idea', 'node_modules', 'data', 'artifacts'].includes(entry.name)) continue;
     const path = resolve(folder, entry.name);
     if (entry.isDirectory()) await visit(path);
     else if (['.js', '.mjs'].includes(extname(path))) {

@@ -111,7 +111,7 @@ exercises.setContext({ runId: run.runId, stepIndex: 0, step: first });
 - 错误码：`INVALID_INPUT/400`、`RUN_NOT_FOUND/404`、`STEP_OUT_OF_RANGE/400`。
 
 > 契约以 main 上的实际返回为准（本文档只记录实测到的事实：接口已实现、字段如上）。
-> 跨成员确认状态：C06已由本分支02装配层消费03原有接口并完成初始同步/销毁检查；具体广播与07待交付边界见[工作台说明](../workbench/README.md)。
+> 跨成员确认状态：C06已由本分支02装配层消费03原有接口并完成初始同步/销毁检查；具体广播与07接入边界见[工作台说明](../workbench/README.md)。
 
 ## 6. 边界（03 不做的部分）
 
@@ -121,4 +121,4 @@ exercises.setContext({ runId: run.runId, stepIndex: 0, step: first });
 - 步骤辅导真实回答与引用链 → **05**（已合并模型适配与问题检索，本分支共享panel消费当前上下文；无Key且未开Mock时503）；
 - 练习题库/判分与本机记录 → **07**。
 
-`frontend/src/features/visualization/dev.html` 与 `dev-morph.html` 是 03 的自测页，**不是**产品入口；里面的代码面板/练习/记录/辅导都是替身，不要当生产代码复用。
+原dev自测页、替身面板和Mock fixtures已在2026-10-23清理。使用正式工作台及tests/workbench.browser.mjs验证动画与播放；设计原型仍独立保留于docs/prototype。
