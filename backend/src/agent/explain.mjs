@@ -3,6 +3,10 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { getRun } from '../runs/store.js';
 
+// ===== 新增：真实模型相关导入（仅在 AGENT_MOCK !== 'true' 时动态加载） =====
+// 下面这些 import 放在函数内部动态加载，避免 Mock 模式下加载不存在的模块
+// 文件底部有动态 import('./providers/deepseek.js') 等
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const cardsPath = resolve(__dirname, '../../../content/knowledge/cards.json');
 
@@ -42,6 +46,59 @@ function cardText(card) {
 
 export async function handleAgentExplain(parsedBody) {
   try {
+    // ===== 新增：真实模型模式（在Mock之前，有return不走下面） =====
+    if (process.env.AGENT_MOCK !== 'true' && process.env.DEEPSEEK_API_KEY) {
+      try {
+        const { DeepSeekProvider } = await import('./providers/deepseek.js');
+        const { buildPrompt } = await import('./prompt.js');
+        const { guardOutput } = await import('./output-guard.js');
+        const { consumeTokens } = await import('./rate-limit.js');
+
+        const { runId, stepIndex, question, hintLevel } = parsedBody;
+        const level = hintLevel === undefined ? 1 : hintLevel;
+        const run = getRun(runId);
+        if (!run) {
+          return { status: 404, body: { error: { code: 'RUN_NOT_FOUND', message: 'run 不存在或已过期' } } };
+        }
+        const steps = Array.isArray(run.steps) ? run.steps : [];
+        const idx = Number(stepIndex);
+        if (idx >= steps.length) {
+          return { status: 400, body: { error: { code: 'STEP_OUT_OF_RANGE', message: 'stepIndex 越界' } } };
+        }
+        const step = steps[idx] || {};
+        const ev = step.event;
+
+        const provider = new DeepSeekProvider();
+        const messages = buildPrompt(run, step, level, question);
+        const result = await provider.chat(messages);
+
+        const guard = guardOutput(result.content);
+        const finalAnswer = guard.valid ? result.content : '请重新思考：当前 mid 位置的元素与目标值比较，下一步应该往哪边找？';
+
+        consumeTokens(parsedBody.sessionId || 'anonymous', result.usage?.totalTokens || 0);
+
+        const cardId = pickCardId(ev);
+        const candidate = loadCards()[cardId];
+        const card = candidate?.verified === true ? candidate : null;
+
+        return {
+          status: 200,
+          body: {
+            runId,
+            stepIndex: idx,
+            answer: finalAnswer + cardText(card),
+            stepRefs: [{ runId, stepIndex: idx, event: ev, left: step.variables?.left, right: step.variables?.right, mid: step.variables?.mid, knowledgeCard: cardId }],
+            sourceRefs: card ? [{ cardId: card.id || cardId, title: card.title || '', sourceId: card.sourceId || null, sourceType: card.sourceType || null, chapter: card.chapter ?? null, pages: card.pages ?? null, version: card.version, verified: card.verified }] : [],
+            usage: { model: result.model || 'deepseek-chat', cost: result.cost || 0, mock: false, tokens: result.usage }
+          }
+        };
+      } catch (err) {
+        console.error('[DeepSeek] 调用失败，降级到 Mock:', err.message);
+        // 降级继续走下面 Mock 逻辑
+      }
+    }
+
+    // ===== 以下原有 Mock 逻辑，一行未动 =====
     if (!parsedBody || typeof parsedBody !== 'object' || Array.isArray(parsedBody)) {
       return { status: 400, body: { error: { code: 'INVALID_INPUT', message: '请求体必须为 JSON 对象' } } };
     }
