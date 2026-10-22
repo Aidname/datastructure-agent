@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import { handleCreateRun, handleGetRun, handleGetStep } from './routes/runs.js';
 import { handleGetExercises, handleCheckExercise } from './routes/exercises.js';
+import { checkRateLimit } from './agent/rate-limit.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const frontendRoot = resolve(here, '../../frontend');
@@ -66,6 +67,18 @@ const server = createServer(async (request, response) => {
 
     // 4. 05 Agent 解释路由（开发期 Mock；生产仍 503）
     if (pathname === '/api/agent/explain' && method === 'POST') {
+      // ===== 新增：限流检查（仅 RATE_LIMIT=true 时启用） =====
+      if (process.env.RATE_LIMIT === 'true') {
+        const limiterKey = request.headers['x-session-id'] || request.socket.remoteAddress;
+        const limitResult = checkRateLimit(limiterKey);
+        if (!limitResult.allowed) {
+          request.resume();
+          return json(response, 429, {
+            error: { code: 'RATE_LIMIT_EXCEEDED', message: '请求过于频繁，请稍后再试', retryAfter: Math.ceil(limitResult.resetIn / 1000) }
+          });
+        }
+      }
+
       if (process.env.AGENT_MOCK !== 'true') {
         request.resume();
         return json(response, 503, {
