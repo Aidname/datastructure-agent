@@ -27,21 +27,21 @@ function getCard(cardId) {
   return map[cardId] || null;
 }
 
-export async function handleAgentExplain(request, response, parsedBody) {
+export async function handleAgentExplain(parsedBody) {
   try {
     if (!parsedBody || typeof parsedBody !== 'object') {
-      return json(response, 400, { error: { code: 'INVALID_INPUT', message: '请求体必须为 JSON 对象' } });
+      return { status: 400, body: { error: { code: 'INVALID_INPUT', message: '请求体必须为 JSON 对象' } } };
     }
 
     const { runId, stepIndex, question, hintLevel } = parsedBody;
 
     if (!runId || typeof runId !== 'string') {
-      return json(response, 400, { error: { code: 'INVALID_INPUT', message: 'runId 为必填字符串' } });
+      return { status: 400, body: { error: { code: 'INVALID_INPUT', message: 'runId 为必填字符串' } } };
     }
 
     if (hintLevel !== undefined && hintLevel !== null) {
       if (!Number.isInteger(hintLevel) || hintLevel < 1 || hintLevel > 3) {
-        return json(response, 400, { error: { code: 'INVALID_INPUT', message: 'hintLevel 必须为 1、2 或 3' } });
+        return { status: 400, body: { error: { code: 'INVALID_INPUT', message: 'hintLevel 必须为 1、2 或 3' } } };
       }
     }
 
@@ -49,13 +49,13 @@ export async function handleAgentExplain(request, response, parsedBody) {
 
     const run = await getRun(runId);
     if (!run) {
-      return json(response, 404, { error: { code: 'RUN_NOT_FOUND', message: 'run 不存在' } });
+      return { status: 404, body: { error: { code: 'RUN_NOT_FOUND', message: 'run 不存在' } } };
     }
 
     const idx = Number(stepIndex) || 0;
     const steps = run.steps || [];
     if (idx < 0 || idx >= steps.length) {
-      return json(response, 400, { error: { code: 'STEP_OUT_OF_RANGE', message: 'stepIndex 越界' } });
+      return { status: 400, body: { error: { code: 'STEP_OUT_OF_RANGE', message: 'stepIndex 越界' } } };
     }
 
     const step = steps[idx];
@@ -63,27 +63,25 @@ export async function handleAgentExplain(request, response, parsedBody) {
     const stepRefs = buildStepRefs(step);
     const sourceRefs = buildSourceRefs(step);
 
-    return json(response, 200, {
-      runId,
-      stepIndex: idx,
-      answer,
-      stepRefs,
-      sourceRefs,
-      usage: { model: 'mock', cost: 0, mock: true }
-    });
+    return {
+      status: 200,
+      body: {
+        runId,
+        stepIndex: idx,
+        answer,
+        stepRefs,
+        sourceRefs,
+        usage: { model: 'mock', cost: 0, mock: true }
+      }
+    };
   } catch (err) {
-    return json(response, 400, { error: { code: 'INVALID_INPUT', message: 'Agent 请求处理失败', detail: err.message } });
+    return { status: 400, body: { error: { code: 'INVALID_INPUT', message: 'Agent 请求处理失败', detail: err.message } } };
   }
-}
-
-function json(response, status, body) {
-  response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
-  response.end(JSON.stringify(body));
 }
 
 async function getRun(runId) {
   try {
-    const { getRun: getRunFromStore } = await import('../store/runs.js');
+    const { getRun: getRunFromStore } = await import('../routes/runs.js');
     return await getRunFromStore(runId);
   } catch {
     return null;
