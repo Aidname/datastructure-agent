@@ -83,22 +83,34 @@ function renderStep(step){
   varRight.innerText = v.right;
   varMid.innerText = v.mid === null ? "未计算" : v.mid;
   stepText.innerText = `${currentStepIdx+1} / ${runSteps.length}`;
-  // 简单代码高亮示意（02职责，03不用管）
+  // 简单代码高亮示意
   codePanel.innerHTML = codePanel.innerText.replace(/<span class="highlight-line">|<\/span>/g,"");
 }
 
 // 开始分析
-startBtn.addEventListener("click", ()=>{
+startBtn.addEventListener("click", async () => {
   clearMsg();
   const parsed = parseInput();
   if(!parsed) return;
-  const {arr, target} = parsed;
-  // 生成step（mock调用04引擎）
-  runSteps = window.getSearchSteps(arr, target);
+  const { arr, target } = parsed;
+  // 调用后端接口拿步骤
+  const res = await fetch("/api/algorithms/binary-search/runs", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      array: arr,
+      target: target
+    })
+  })
+  const data = await res.json()
+  runSteps = data.steps;
   currentStepIdx = 0;
   renderStep(runSteps[currentStepIdx]);
   toggleButtonState();
 });
+
 
 // 上一步
 prevBtn.addEventListener("click",()=>{
