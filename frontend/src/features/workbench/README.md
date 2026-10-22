@@ -10,9 +10,9 @@
 
 ## 03动画与唯一播放指针
 
-复用 `createVisualization` 与 `createPlayback`，不修改03的实现，不自己维护第二套stepIndex。按钮调用prev/next/play/pause/reset/setSpeed；reset停止并返回步骤0，保留当前输入和run。初始步骤由装配层显式同步给全部消费者。输入变化、换run、卸载均销毁旧实例。
+复用03的createVizWindow（内部createVisualization）与createPlayback；窗口已从原03开发交付恢复并适配正式页面，不自己维护第二套stepIndex。按钮调用prev/next/play/pause/reset/setSpeed，时间轴及起止跳步调用seek；reset停止并返回步骤0，保留当前输入和run。初始步骤由装配层显式同步给全部消费者。输入变化、换run、卸载均销毁旧实例。
 
-键盘仅在动画区处理：左右单步、空格播放/暂停；输入、按钮、链接等控件保留原生按键行为，不重复推进。动画区对长数组局部横向滚动，桌面/窄屏适配由02宿主样式承担。
+键盘仅在动画区处理：左右单步、空格播放/暂停；视口Home自适应取景，时间轴独立处理左右/Home/End并停止冒泡，避免一次跳两步；输入、按钮、链接等控件保留原生按键行为，不重复推进。视口支持网格、平移缩放、居中取景及窗口全屏；长数组先适配视口再按需放大。桌面/窄屏适配由window.css承担，原工作台格子尺寸覆盖已移除。
 
 ## 05聊天
 

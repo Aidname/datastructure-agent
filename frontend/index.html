@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/src/features/visualization/visualization.css">
   <link rel="stylesheet" href="/src/features/agent/chat.css">
   <link rel="stylesheet" href="/src/features/exercises/exercises.css">
+  <link rel="stylesheet" href="/src/features/visualization/window.css">
 </head>
 <body>
   <main>
@@ -21,7 +22,6 @@
     </form>
     <div class="workspace">
       <section class="panel visualization-region" aria-labelledby="viz-title"><header class="panel-heading"><h2 id="viz-title">执行过程</h2><span id="stepText">尚未开始</span></header><div id="visualization-panel" tabindex="0" aria-label="数组动画，可用左右方向键单步操作"><p class="empty-state">填入示例，开始观察每一步。</p></div><p id="step-description" aria-live="polite"></p>
-        <div class="playback-controls" aria-label="播放控制"><button id="prevBtn" type="button" class="secondary" disabled>上一步</button><button id="playBtn" type="button" disabled>播放</button><button id="nextBtn" type="button" class="secondary" disabled>下一步</button><button id="resetBtn" type="button" class="secondary" disabled>重置</button><label for="speedSelect">速度<select id="speedSelect"><option value="2000">2 秒/步</option><option value="1000" selected>1 秒/步</option><option value="500">0.5 秒/步</option><option value="250">0.25 秒/步</option></select></label></div>
         <p class="muted shortcut-help">聚焦动画区：← 上一步，→ 下一步，空格播放或暂停。重置返回第 1 步。</p>
       </section>
       <section id="code-panel" class="panel code-region" aria-labelledby="code-title"><header class="panel-heading"><h2 id="code-title">代码与变量</h2><span id="source-version" class="muted">C/C++</span></header><dl class="variables"><div><dt>left</dt><dd id="varLeft">—</dd></div><div><dt>right</dt><dd id="varRight">—</dd></div><div><dt>mid</dt><dd id="varMid">未计算</dd></div><div><dt>A[mid]</dt><dd id="varValue">—</dd></div></dl><ol id="code-lines" class="source-lines" aria-label="C/C++ 展示代码"><li>开始分析后显示对应源码。</li></ol></section>

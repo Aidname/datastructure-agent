@@ -121,4 +121,4 @@ exercises.setContext({ runId: run.runId, stepIndex: 0, step: first });
 - 步骤辅导真实回答与引用链 → **05**（已合并模型适配与问题检索，本分支共享panel消费当前上下文；无Key且未开Mock时503）；
 - 练习题库/判分与本机记录 → **07**。
 
-原dev自测页、替身面板和Mock fixtures已在2026-10-23清理。使用正式工作台及tests/workbench.browser.mjs验证动画与播放；设计原型仍独立保留于docs/prototype。
+原完整dev自测页、替身面板和Mock fixtures已清理；03可复用的窗口、网格与样式随后按用户要求恢复为window.js/window.css/grid.js，并装配到正式工作台。窗口只消费真实run，时间轴通过createPlayback.seek转发同一指针；其余输入、源码、聊天和练习继续复用正式模块。使用tests/workbench.browser.mjs及tests/visualization-window.browser.mjs验证；设计原型仍独立保留于docs/prototype。

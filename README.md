@@ -62,6 +62,8 @@ Invoke-RestMethod http://127.0.0.1:3000/api/exercises
 
 2026-10-14 的本地核验通过静态检查、页面及健康接口检查，详见 [接手核验记录](docs/architecture/takeover-check.md)。这次启动核验由 Codex 在本地副本完成；另一位队员从干净副本启动的验收仍待进行。
 
+03可视化窗口已在本分支恢复：深色网格、平移缩放、时间轴跳步、最大化/全屏接入当前真实运行。启动后刷新工作台即可查看；[恢复说明与截图](docs/architecture/visualization-window-check-20261023.md)。
+
 ## 开发检查
 
 日常运行npm run check、npm test；引擎/接口完整检查运行npm run test:backend，资料校验运行npm run check:content。浏览器回归需要本机Playwright及Edge，命令、覆盖范围和证据入口见[测试说明](tests/README.md)。这些脚本保留用于08独立复核和后续修复回归。
