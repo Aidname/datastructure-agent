@@ -1,5 +1,10 @@
-# 步骤辅导界面（成员05）
+# 步骤辅导界面（成员05，02装配）
 
-待实现：问题、三级提示、发送/加载/失败/重试，以及针对哪个run/step的标签。调用同源后端，不在浏览器保存模型密钥。
+共享实现 `panel.js` 导出 `createAgentChat(container,{embedded=false,onBeforeSend})`，返回 `{setContext,destroy}`。两种入口使用同一逻辑：
 
-回答应标注实际步骤和资料引用。人工示意文案不能标为真实模型输出。
+- 正式工作台：02创建embedded面板，`setContext({runId,stepIndex})`自动绑定当前步骤，`setContext(null)`禁用提问并取消旧请求；不会要求学生手工复制runId。发送前通过onBeforeSend暂停03播放。
+- 独立 `chat.html`：chat.js挂载同一面板，支持URL参数runId/stepIndex及手工输入，原调试入口保留。
+
+同一run切换步骤时，回答保留原问题、原run/步骤/提示级别标签和资料引用；换run/输入失效时取消旧请求，迟到数据不写入新关联。失败重试保留原请求快照。busy时防止重复发送；destroy取消请求和监听。页面隐藏卸载，浏览器历史恢复会重载以重新初始化。
+
+同源POST `/api/agent/explain`和GET用量接口使用同一sessionId；模式来自health，未知token/费用不显示为0，不在前端保存Key。后端检索和模式说明见[Agent服务](../../../../backend/src/agent/README.md)。真实模型效果仍需实际Key联调及08评测。

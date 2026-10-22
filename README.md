@@ -2,7 +2,7 @@
 
 **看懂每一步：数据结构与算法可视化学习助手。**
 
-截至2026-10-20，main `cc8d171` 已合并成员04的[PR #10](https://github.com/tw1l1ghtcc/datastructure-agent/pull/10)：确定性二分查找、源码行映射、完整运行/单步查询、题库与程序判分接口可用。成员06已提供10张自编知识卡、10题及固定提示、11组人工预期。后端独立核验26/26通过。成员09的[PR #12](https://github.com/tw1l1ghtcc/datastructure-agent/pull/12)已合并需求v0.9、五页可点击原型、项目标志、思维导图/领域模型和40项覆盖规划；原型独立预览，生产工作台、动画、Agent/检索、本机记录及完整流程仍待接入，当时尚未接入模型。当前分支的05实现见下方说明。详见[任务看板](docs/team/progress.md)及[后端核验记录](docs/architecture/backend-check-20261019.md)。
+当前分支已接入04的真实二分查找run、03动画/播放、源码高亮与变量，以及05步骤辅导和按问题知识检索。正常启动后直接访问工作台。06已提供10张自编知识卡和10题，09需求/原型/图表已合并。07练习前端与本机记录尚未交付，页面仅保留挂载区；真实模型效果、真实调研及完整练习流程仍待验收。工作台状态和检查见[接入说明](frontend/src/features/workbench/README.md)与[本轮验收](docs/architecture/workbench-check-20261022.md)。
 
 ## 从哪里开始
 
@@ -47,7 +47,7 @@ npm start
 Invoke-RestMethod http://127.0.0.1:3000/api/health
 ```
 
-当前预期为 `ok=true`、`stage=scaffold`、`implemented` 包含 `static-page/health/runs/exercises/agent/knowledge`。mode为disabled/mock/deepseek，modelCallsEnabled只在真实模式为true。正式工作台仍待整合，独立聊天页可用；知识接口已支持按问题查询verified知识卡，见[检索说明](backend/src/knowledge/README.md)。检查结束后在运行 `npm start` 的窗口按 Ctrl+C 停止服务。
+当前预期为 `ok=true`、`stage=scaffold`、`implemented` 包含 `static-page/health/runs/exercises/agent/knowledge`。mode为disabled/mock/deepseek，modelCallsEnabled只在真实模式为true。正式工作台已接入真实动画、源码/变量与辅导，独立聊天页保留；07练习/记录界面尚未开放；知识接口已支持按问题查询verified知识卡，见[检索说明](backend/src/knowledge/README.md)。检查结束后在运行 `npm start` 的窗口按 Ctrl+C 停止服务。
 
 可在服务运行时验证完整轨迹：
 
@@ -108,7 +108,7 @@ scripts/               仓库静态检查
 .github/               PR 模板和任务 Issue 模板
 ```
 
-`shared/examples/` 是人工协议示例，`content/exercises/binary-search-oracle.json` 是人工预期，均不是真实引擎输出或模型效果证据。已登记9名成员，剩余名单、真实访谈和效果结果待补。本批内容经用户确认采用项目自编，不要求教材具体章节/页码，也不声称完成教材核验；来源决定见[范围记录](docs/product/scope.md)。
+`shared/examples/` 是人工协议示例，`content/exercises/binary-search-oracle.json` 是人工预期，均不是真实引擎输出或模型效果证据。已登记10名成员，真实访谈和效果结果仍待补。本批内容经用户确认采用项目自编，不要求教材具体章节/页码，也不声称完成教材核验；来源决定见[范围记录](docs/product/scope.md)。
 
 ## 材料入口
 
