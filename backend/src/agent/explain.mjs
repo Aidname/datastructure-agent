@@ -97,6 +97,11 @@ function buildHint(run, step, hintLevel, question) {
   const mid = step.mid;
   const ev = step.event;
 
+  // 所有 hintLevel 统一：空区间提前判断
+  if (left > right) {
+    return `${prefix}候选区间已为空（left > right），查找结束，返回 -1（not-found）。`;
+  }
+
   let answer = '';
 
   if (hintLevel === 1) {
@@ -124,13 +129,13 @@ function buildHint(run, step, hintLevel, question) {
       answer += ' 找到目标，查找成功。';
     } else if (ev === 'not-found') {
       answer += ' 候选区间已空，查找结束。';
+    } else if (ev === 'init') {
+      answer += ' 初始化查找区间。';
     }
   } else {
     let next = '';
     if (!arr.length) {
       next = '数组为空，查找直接结束（not-found）。';
-    } else if (left > right) {
-      next = '候选区间已为空（left > right），查找结束，返回 -1（not-found）。';
     } else if (step.done) {
       if (ev === 'found') {
         next = '已找到目标，查找成功结束。';
