@@ -15,9 +15,11 @@
       <a href="/" class="back-link">← 返回主页</a>
     </header>
 
+    <div id="current-step-label" class="current-step-label">未选择步骤</div>
+
     <div id="chat-messages" class="chat-messages">
       <div class="message system">
-        你好！我是你的二分查找辅导助手。请先运行一个算法实例，然后我可以帮你分析每一步。
+        <div class="message-body">你好！我是你的二分查找辅导助手。请先运行一个算法实例，然后我可以帮你分析每一步。</div>
       </div>
     </div>
 
@@ -34,6 +36,7 @@
       <div class="input-row">
         <input type="text" id="question-input" placeholder="输入问题或追问...">
         <button id="send-btn">发送</button>
+        <button id="retry-btn" style="display:none">重试</button>
       </div>
     </div>
 
