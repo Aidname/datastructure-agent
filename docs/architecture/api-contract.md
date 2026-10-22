@@ -78,7 +78,7 @@ GET /api/agent/usage?sessionId=... 返回当前socket来源+session、服务启�
 
 限流默认开启，按socket peer来源聚合；忽略session、User-Agent、x-forwarded-for。反向代理部署需另明确可信来源策略。预算调用前同步预留，避免并发重复分配；本地单进程持久账本位于已忽略的data/private/agent-budget.json，保留失败、未知用量及中断调用的预留。默认测试累计30元、每日5元；这是估算额度控制，实际账单仍以服务商为准，多实例需事务共享存储。配置见[Agent说明](../../backend/src/agent/README.md)。
 
-按问题检索已接入，详见下节；正式工作台装配与真实模型效果验收仍待完成。聊天独立页支持URL传runId/stepIndex，失败重试保存原请求快照。02负责工作台装配，05配合；真实案例由05提供调用记录并配合08评测。
+按问题检索已接入，详见下节；本分支已完成02/03/05工作台装配，07模块与真实模型效果验收仍待完成。聊天独立页支持URL传runId/stepIndex，失败重试保存原请求快照。02负责工作台装配，05配合；真实案例由05提供调用记录并配合08评测。
 
 回归：`node --test tests/knowledge-retrieval.test.mjs tests/agent-explain.test.mjs tests/agent-provider.test.mjs tests/agent-real-mode.test.mjs`。测试使用本地桩，不是实际模型效果证据。
 
@@ -91,3 +91,7 @@ GET /api/knowledge/cards?topicId=binary-search&q=问题&limit=3：topicId缺省b
 Agent检索字段另含matchedCardIds与contextCardId。问题匹配优先于事件；“解释这一步”等问题用事件卡并标step-context。无匹配返回资料不足、空sourceRefs、knowledgeUsed=false、usage.insufficientKnowledge=true，不调用模型；明显无关问题标irrelevant。stepRefs.knowledgeCard仅指实际提供的事件上下文卡（可null），所有提供给模型的卡片列在sourceRefs中，不能将这些引用解释成每句话都已事实核验。
 
 本批只覆盖现有10张自编二分查找卡，不使用向量数据库，无额外依赖；排序细节及限制见[知识检索说明](../../backend/src/knowledge/README.md)。
+
+## 正式工作台步骤上下文
+
+02使用04完整run和03唯一播放指针，显式分发初始步骤0；输入失效广播null并销毁旧播放/请求。代码按sourceLines/lineId渲染。05共享面板通过setContext同步当前run/step，提问暂停播放；更换run取消旧问答。07挂载点#exercise-mount，subscribeStep(listener)或workbench:step事件接收只读context：{runId,stepIndex,step,total,playing,sourceVersion}或null。07当前未实现，挂载区不代表练习/记录已交付。具体生命周期见[02接入说明](../../frontend/src/features/workbench/README.md)。

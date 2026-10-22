@@ -39,4 +39,4 @@ node --test tests/knowledge-retrieval.test.mjs tests/agent-explain.test.mjs test
 
 测试仅使用显式加载的本地模型桩和虚拟Key，不访问付费模型。浏览器检查脚本为 `tests/agent-chat.browser.mjs`，需要本地可用的 Playwright 和 Edge；可用 `TEST_PLAYWRIGHT_MODULE` 指定已安装模块的入口绝对路径，然后运行 `node tests/agent-chat.browser.mjs`。
 
-剩余：聊天页尚未由02装配进正式工作台，需要与02/03同步当前run和步骤；尚无真实Key端到端证据及08所需3组定制对比。不得将本地桩测试当成真实模型效果验收。以上按已有分工另做，不宣称本PR完成整个05任务。
+聊天已通过共享panel接入本分支正式工作台，自动同步当前run/步骤；剩余：尚无真实Key端到端证据及08所需3组定制对比。不得将本地桩测试当成真实模型效果验收。以上按已有分工另做，不宣称本PR完成整个05任务。

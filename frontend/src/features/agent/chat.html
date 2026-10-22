@@ -3,46 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>算法辅导聊天</title>
+  <title>步骤辅导 · 看懂每一步</title>
   <link rel="stylesheet" href="/src/styles/base.css">
   <link rel="stylesheet" href="/src/features/agent/chat.css">
 </head>
 <body>
-  <div class="chat-container">
-    <header class="chat-header">
-      <h2>🤖 二分查找辅导助手</h2>
-      <span id="status-badge" class="badge mock">Mock模式</span>
-      <a href="/" class="back-link">← 返回主页</a>
-    </header>
-
-    <div id="current-step-label" class="current-step-label">未选择步骤</div>
-
-    <div id="chat-messages" class="chat-messages">
-      <div class="message system">
-        <div class="message-body">你好！我是你的二分查找辅导助手。请先运行一个算法实例，然后我可以帮你分析每一步。</div>
-      </div>
-    </div>
-
-    <div class="chat-input-area">
-      <div class="input-row">
-        <input type="text" id="run-id-input" placeholder="runId（从运行页面复制）">
-        <input type="number" id="step-index-input" placeholder="步骤索引" min="0">
-        <select id="hint-level-select">
-          <option value="1">基础提示</option>
-          <option value="2" selected>详细分析</option>
-          <option value="3">完整推理</option>
-        </select>
-      </div>
-      <div class="input-row">
-        <input type="text" id="question-input" placeholder="输入问题或追问...">
-        <button id="send-btn">发送</button>
-        <button id="retry-btn" style="display:none">重试</button>
-      </div>
-    </div>
-
-    <div id="usage-info" class="usage-info"></div>
-  </div>
-
+  <div class="chat-container"></div>
   <script type="module" src="/src/features/agent/chat.js"></script>
 </body>
 </html>

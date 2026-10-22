@@ -81,6 +81,6 @@
 
 权威契约见[API契约](../../../docs/architecture/api-contract.md)。hintLevel仅缺省时为1，显式null等非法值拒绝。
 
-真实模式及配置见[Agent说明](../../../backend/src/agent/README.md)。可选sessionId用于统计，GET /api/agent/usage?sessionId=...须使用相同标识。未知token/费用分别为null；不要显示为0。聊天页为 /src/features/agent/chat.html?runId=实际ID&stepIndex=1。按问题检索已接入；返回新增retrieval说明匹配卡和步骤卡，无匹配会提示资料不足且sourceRefs为空。正式工作台装配仍待协作。知识接口见[检索说明](../../../backend/src/knowledge/README.md)。
+真实模式及配置见[Agent说明](../../../backend/src/agent/README.md)。可选sessionId用于统计，GET /api/agent/usage?sessionId=...须使用相同标识。未知token/费用分别为null；不要显示为0。聊天页为 /src/features/agent/chat.html?runId=实际ID&stepIndex=1。按问题检索已接入；返回新增retrieval说明匹配卡和步骤卡，无匹配会提示资料不足且sourceRefs为空。正式工作台已接入02/03/05模块；07练习/记录仍待交付。知识接口见[检索说明](../../../backend/src/knowledge/README.md)。
 
 回归：node --test tests/knowledge-retrieval.test.mjs tests/agent-explain.test.mjs tests/agent-provider.test.mjs tests/agent-real-mode.test.mjs。真实调用测试使用本地桩，不产生模型费用。

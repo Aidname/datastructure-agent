@@ -1,0 +1,559 @@
+{
+  "mode": "AGENT_MOCK=true; no paid model calls",
+  "recordedAt": "2026-10-22T15:40:39.596Z",
+  "requests": [
+    {
+      "path": "/api/algorithms/binary-search/runs",
+      "status": 200,
+      "request": {
+        "array": [
+          1,
+          3,
+          5,
+          7,
+          9
+        ],
+        "target": 7
+      },
+      "response": {
+        "runId": "run_1ydefusj",
+        "createdAt": 1792683628293,
+        "algorithm": "binary-search",
+        "sourceVersion": "c-v1",
+        "sourceLines": [
+          {
+            "lineId": "init-left",
+            "text": "int left = 0;"
+          },
+          {
+            "lineId": "init-right",
+            "text": "int right = n - 1;"
+          },
+          {
+            "lineId": "loop-check",
+            "text": "while (left <= right) {"
+          },
+          {
+            "lineId": "calc-mid",
+            "text": "  int mid = left + (right - left) / 2;"
+          },
+          {
+            "lineId": "probe-match",
+            "text": "  if (arr[mid] == target) {"
+          },
+          {
+            "lineId": "found",
+            "text": "    return mid;"
+          },
+          {
+            "lineId": "probe-less",
+            "text": "  } else if (arr[mid] < target) {"
+          },
+          {
+            "lineId": "update-left",
+            "text": "    left = mid + 1;"
+          },
+          {
+            "lineId": "probe-greater",
+            "text": "  } else {"
+          },
+          {
+            "lineId": "update-right",
+            "text": "    right = mid - 1;"
+          },
+          {
+            "lineId": "loop-end",
+            "text": "  }"
+          },
+          {
+            "lineId": "loop-end-2",
+            "text": "}"
+          },
+          {
+            "lineId": "not-found",
+            "text": "return -1;"
+          }
+        ],
+        "steps": [
+          {
+            "schemaVersion": "1.0",
+            "algorithm": "binary-search",
+            "stepIndex": 0,
+            "event": "init",
+            "sourceVersion": "c-v1",
+            "lineId": "init-left",
+            "array": [
+              1,
+              3,
+              5,
+              7,
+              9
+            ],
+            "target": 7,
+            "variables": {
+              "left": 0,
+              "right": 4,
+              "mid": null
+            },
+            "done": false,
+            "result": null
+          },
+          {
+            "schemaVersion": "1.0",
+            "algorithm": "binary-search",
+            "stepIndex": 1,
+            "event": "probe",
+            "sourceVersion": "c-v1",
+            "lineId": "calc-mid",
+            "array": [
+              1,
+              3,
+              5,
+              7,
+              9
+            ],
+            "target": 7,
+            "variables": {
+              "left": 0,
+              "right": 4,
+              "mid": 2
+            },
+            "done": false,
+            "result": null
+          },
+          {
+            "schemaVersion": "1.0",
+            "algorithm": "binary-search",
+            "stepIndex": 2,
+            "event": "move-left",
+            "sourceVersion": "c-v1",
+            "lineId": "update-left",
+            "array": [
+              1,
+              3,
+              5,
+              7,
+              9
+            ],
+            "target": 7,
+            "variables": {
+              "left": 3,
+              "right": 4,
+              "mid": null
+            },
+            "done": false,
+            "result": null
+          },
+          {
+            "schemaVersion": "1.0",
+            "algorithm": "binary-search",
+            "stepIndex": 3,
+            "event": "probe",
+            "sourceVersion": "c-v1",
+            "lineId": "calc-mid",
+            "array": [
+              1,
+              3,
+              5,
+              7,
+              9
+            ],
+            "target": 7,
+            "variables": {
+              "left": 3,
+              "right": 4,
+              "mid": 3
+            },
+            "done": false,
+            "result": null
+          },
+          {
+            "schemaVersion": "1.0",
+            "algorithm": "binary-search",
+            "stepIndex": 4,
+            "event": "found",
+            "sourceVersion": "c-v1",
+            "lineId": "found",
+            "array": [
+              1,
+              3,
+              5,
+              7,
+              9
+            ],
+            "target": 7,
+            "variables": {
+              "left": 3,
+              "right": 4,
+              "mid": 3
+            },
+            "done": true,
+            "result": 3
+          }
+        ],
+        "result": 3
+      }
+    },
+    {
+      "path": "/api/agent/explain",
+      "status": 200,
+      "request": {
+        "runId": "run_1ydefusj",
+        "stepIndex": 1,
+        "question": "为什么下一步更新left？",
+        "hintLevel": 2,
+        "sessionId": "run_1ydefusj"
+      },
+      "response": {
+        "runId": "run_1ydefusj",
+        "stepIndex": 1,
+        "hintLevel": 2,
+        "answer": "[Mock开发模式] 步骤 2 事件 probe：候选区间 [0, 4]，mid=2，A[2]=5。目标 7。 正在比较目标与中间元素。\n\n📖 中点值偏小：left=mid+1：当 A[mid]<target 时，由非递减顺序可知，当前候选范围中下标不大于mid的元素都小于target，所以排除[left,mid]，令left=mid+1。旧中点已检查过，不再保留。统一案例[1,3,5,7,9]查7时，第一轮mid=2、A[mid]=5，更新后left=3、right=4。\n📎 来源：project-original-binary-search\n\n📖 闭区间与零起始下标：当前候选范围是闭区间 [left,right]，两个端点都包含在内，下标从0开始。长度为 n 的数组初始化为 left=0、right=n-1。只要 left≤right，范围内就仍有待检查的位置；left=right 表示剩一个元素，并不表示已结束。\n📎 来源：project-original-binary-search\n\n📖 中点计算：向下取整：在非空候选区间中，mid=left+floor((right-left)/2)。例如 [0,4] 的中点是2，[3,4] 的中点是3。这里算出的是下标，A[mid]才是中点值。先判断 left≤right 再计算和访问中点。C/C++在非负差值上使用整数除法可得到同一结果；JS不用位运算强制转为32位整数。\n📎 来源：project-original-binary-search",
+        "stepRefs": [
+          {
+            "runId": "run_1ydefusj",
+            "stepIndex": 1,
+            "event": "probe",
+            "left": 0,
+            "right": 4,
+            "mid": 2,
+            "knowledgeCard": "bs-k03",
+            "array": [
+              1,
+              3,
+              5,
+              7,
+              9
+            ],
+            "target": 7
+          }
+        ],
+        "sourceRefs": [
+          {
+            "cardId": "bs-k04",
+            "title": "中点值偏小：left=mid+1",
+            "sourceId": "project-original-binary-search",
+            "sourceType": "original",
+            "chapter": null,
+            "pages": null,
+            "version": "1.0.0",
+            "verified": true
+          },
+          {
+            "cardId": "bs-k02",
+            "title": "闭区间与零起始下标",
+            "sourceId": "project-original-binary-search",
+            "sourceType": "original",
+            "chapter": null,
+            "pages": null,
+            "version": "1.0.0",
+            "verified": true
+          },
+          {
+            "cardId": "bs-k03",
+            "title": "中点计算：向下取整",
+            "sourceId": "project-original-binary-search",
+            "sourceType": "original",
+            "chapter": null,
+            "pages": null,
+            "version": "1.0.0",
+            "verified": true
+          }
+        ],
+        "retrieval": {
+          "method": "keyword-v1",
+          "status": "matched",
+          "matchedCardIds": [
+            "bs-k04",
+            "bs-k02"
+          ],
+          "contextCardId": "bs-k03",
+          "matches": [
+            {
+              "cardId": "bs-k04",
+              "score": 20,
+              "matchedTerms": [
+                "更新left",
+                "left"
+              ]
+            },
+            {
+              "cardId": "bs-k02",
+              "score": 6,
+              "matchedTerms": [
+                "left"
+              ]
+            }
+          ]
+        },
+        "knowledgeUsed": true,
+        "usage": {
+          "model": "mock",
+          "cost": 0,
+          "mock": true
+        }
+      }
+    },
+    {
+      "path": "/api/algorithms/binary-search/runs",
+      "status": 200,
+      "request": {
+        "array": [
+          1,
+          3,
+          5,
+          7,
+          9
+        ],
+        "target": 4
+      },
+      "response": {
+        "runId": "run_uszs3e2j",
+        "createdAt": 1792683634596,
+        "algorithm": "binary-search",
+        "sourceVersion": "c-v1",
+        "sourceLines": [
+          {
+            "lineId": "init-left",
+            "text": "int left = 0;"
+          },
+          {
+            "lineId": "init-right",
+            "text": "int right = n - 1;"
+          },
+          {
+            "lineId": "loop-check",
+            "text": "while (left <= right) {"
+          },
+          {
+            "lineId": "calc-mid",
+            "text": "  int mid = left + (right - left) / 2;"
+          },
+          {
+            "lineId": "probe-match",
+            "text": "  if (arr[mid] == target) {"
+          },
+          {
+            "lineId": "found",
+            "text": "    return mid;"
+          },
+          {
+            "lineId": "probe-less",
+            "text": "  } else if (arr[mid] < target) {"
+          },
+          {
+            "lineId": "update-left",
+            "text": "    left = mid + 1;"
+          },
+          {
+            "lineId": "probe-greater",
+            "text": "  } else {"
+          },
+          {
+            "lineId": "update-right",
+            "text": "    right = mid - 1;"
+          },
+          {
+            "lineId": "loop-end",
+            "text": "  }"
+          },
+          {
+            "lineId": "loop-end-2",
+            "text": "}"
+          },
+          {
+            "lineId": "not-found",
+            "text": "return -1;"
+          }
+        ],
+        "steps": [
+          {
+            "schemaVersion": "1.0",
+            "algorithm": "binary-search",
+            "stepIndex": 0,
+            "event": "init",
+            "sourceVersion": "c-v1",
+            "lineId": "init-left",
+            "array": [
+              1,
+              3,
+              5,
+              7,
+              9
+            ],
+            "target": 4,
+            "variables": {
+              "left": 0,
+              "right": 4,
+              "mid": null
+            },
+            "done": false,
+            "result": null
+          },
+          {
+            "schemaVersion": "1.0",
+            "algorithm": "binary-search",
+            "stepIndex": 1,
+            "event": "probe",
+            "sourceVersion": "c-v1",
+            "lineId": "calc-mid",
+            "array": [
+              1,
+              3,
+              5,
+              7,
+              9
+            ],
+            "target": 4,
+            "variables": {
+              "left": 0,
+              "right": 4,
+              "mid": 2
+            },
+            "done": false,
+            "result": null
+          },
+          {
+            "schemaVersion": "1.0",
+            "algorithm": "binary-search",
+            "stepIndex": 2,
+            "event": "move-right",
+            "sourceVersion": "c-v1",
+            "lineId": "update-right",
+            "array": [
+              1,
+              3,
+              5,
+              7,
+              9
+            ],
+            "target": 4,
+            "variables": {
+              "left": 0,
+              "right": 1,
+              "mid": null
+            },
+            "done": false,
+            "result": null
+          },
+          {
+            "schemaVersion": "1.0",
+            "algorithm": "binary-search",
+            "stepIndex": 3,
+            "event": "probe",
+            "sourceVersion": "c-v1",
+            "lineId": "calc-mid",
+            "array": [
+              1,
+              3,
+              5,
+              7,
+              9
+            ],
+            "target": 4,
+            "variables": {
+              "left": 0,
+              "right": 1,
+              "mid": 0
+            },
+            "done": false,
+            "result": null
+          },
+          {
+            "schemaVersion": "1.0",
+            "algorithm": "binary-search",
+            "stepIndex": 4,
+            "event": "move-left",
+            "sourceVersion": "c-v1",
+            "lineId": "update-left",
+            "array": [
+              1,
+              3,
+              5,
+              7,
+              9
+            ],
+            "target": 4,
+            "variables": {
+              "left": 1,
+              "right": 1,
+              "mid": null
+            },
+            "done": false,
+            "result": null
+          },
+          {
+            "schemaVersion": "1.0",
+            "algorithm": "binary-search",
+            "stepIndex": 5,
+            "event": "probe",
+            "sourceVersion": "c-v1",
+            "lineId": "calc-mid",
+            "array": [
+              1,
+              3,
+              5,
+              7,
+              9
+            ],
+            "target": 4,
+            "variables": {
+              "left": 1,
+              "right": 1,
+              "mid": 1
+            },
+            "done": false,
+            "result": null
+          },
+          {
+            "schemaVersion": "1.0",
+            "algorithm": "binary-search",
+            "stepIndex": 6,
+            "event": "move-left",
+            "sourceVersion": "c-v1",
+            "lineId": "update-left",
+            "array": [
+              1,
+              3,
+              5,
+              7,
+              9
+            ],
+            "target": 4,
+            "variables": {
+              "left": 2,
+              "right": 1,
+              "mid": null
+            },
+            "done": false,
+            "result": null
+          },
+          {
+            "schemaVersion": "1.0",
+            "algorithm": "binary-search",
+            "stepIndex": 7,
+            "event": "not-found",
+            "sourceVersion": "c-v1",
+            "lineId": "not-found",
+            "array": [
+              1,
+              3,
+              5,
+              7,
+              9
+            ],
+            "target": 4,
+            "variables": {
+              "left": 2,
+              "right": 1,
+              "mid": null
+            },
+            "done": true,
+            "result": -1
+          }
+        ],
+        "result": -1
+      }
+    }
+  ]
+}
