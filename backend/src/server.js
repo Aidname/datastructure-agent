@@ -15,7 +15,7 @@ function json(response, code, value) {
   response.end(JSON.stringify(value));
 }
 
-// 修复审查意见：按字节限制请求体大小（10KB）
+// 按字节限制请求体大小（10KB），最后统一UTF-8解码
 async function readBody(request) {
   let size = 0;
   const chunks = [];
@@ -64,22 +64,31 @@ const server = createServer(async (request, response) => {
       return handleCheckExercise(request, response, body);
     }
 
-   // 4. 05 的 Agent 解释路由
+    // 4. 05 Agent 解释路由（开发期 Mock；生产仍 503）
     if (pathname === '/api/agent/explain' && method === 'POST') {
-      // 无配置默认503（需 AGENT_MOCK=true 显式开启）
       if (process.env.AGENT_MOCK !== 'true') {
         request.resume();
-        return json(response, 503, { error: { code: 'MODEL_NOT_CONFIGURED', message: '模型未配置，不影响算法和判分。开发阶段请设置 AGENT_MOCK=true 启用 Mock 模式。' } });
+        return json(response, 503, {
+          error: {
+            code: 'MODEL_NOT_CONFIGURED',
+            message: '模型未配置，不影响算法和判分。开发阶段请设置 AGENT_MOCK=true 启用 Mock 模式。'
+          }
+        });
       }
       try {
         const body = await readBody(request);
-        const input = body ? JSON.parse(body) : {};
+        let input = {};
+        try {
+          input = body ? JSON.parse(body) : {};
+        } catch {
+          return json(response, 400, { error: { code: 'INVALID_REQUEST', message: '请求体不是合法 JSON' } });
+        }
         const { handleAgentExplain } = await import('./agent/explain.mjs');
         const result = await handleAgentExplain(input);
         return json(response, result.status, result.body);
       } catch (err) {
         request.resume();
-        return json(response, 400, { error: { code: 'INVALID_REQUEST', message: '请求体格式错误', detail: err.message } });
+        return json(response, 400, { error: { code: 'INVALID_REQUEST', message: 'Agent 请求处理失败', detail: err.message } });
       }
     }
 
@@ -111,7 +120,7 @@ const server = createServer(async (request, response) => {
     }
   } catch (error) {
     if (error.message === 'BODY_TOO_LARGE') {
-      return json(response, 400, { error: { code: 'INVALID_INPUT', message: '请求体超过 10KB 限制' } });
+      return json(response, 413, { error: { code: 'PAYLOAD_TOO_LARGE', message: '请求体超过 10KB 限制' } });
     }
     console.error(error);
     json(response, 400, { error: { code: 'INVALID_REQUEST', message: '请求无法处理。' } });
