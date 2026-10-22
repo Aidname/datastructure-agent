@@ -64,6 +64,8 @@ Invoke-RestMethod http://127.0.0.1:3000/api/exercises
 
 工作台已按用户确认的09原型模式调整：侧栏可收起，代码与白底动画并排，四变量横排，时间轴位于播放栏右侧；步骤辅导和知识卡收进右下悬浮窗口。启动后刷新即可查看；[当前布局与验收截图](docs/architecture/workbench-layout-check-20261023.md)。
 
+连续追问已在本分支补齐：同一运行最多参考最近10轮并限制总长度，换运行隔离；提示词采用直白的助教风格，来源单独展示。[实现与本地检查](docs/architecture/agent-conversation-check-20261023.md)。真实模型语气效果仍待实测。
+
 ## 开发检查
 
 日常运行npm run check、npm test；引擎/接口完整检查运行npm run test:backend，资料校验运行npm run check:content。浏览器回归需要本机Playwright及Edge，命令、覆盖范围和证据入口见[测试说明](tests/README.md)。这些脚本保留用于08独立复核和后续修复回归。

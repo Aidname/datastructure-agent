@@ -20,7 +20,14 @@ export function createAgentChat(container, { embedded = false, onBeforeSend = ()
   const runInput = $('run-id-input'), stepInput = $('step-index-input'), level = $('hint-level-select');
   const lifetime = new AbortController();
   let busy = false, context = null, failed = null, controller = null, serial = 0, usageTicket = 0, alive = true;
-  let loading = null;
+  let loading = null, conversationRun = null, conversationId = null;
+  function resetConversation() { conversationRun = null; conversationId = null; }
+  function identify(input) {
+    if (!conversationId || conversationRun !== input.runId) {
+      conversationId = crypto.randomUUID(); conversationRun = input.runId;
+    }
+    return { ...input, conversationId, turnId: crypto.randomUUID() };
+  }
   const listen = (node, type, handler) => node.addEventListener(type, handler, { signal: lifetime.signal });
 
   function append(role, text, meta) {
@@ -43,7 +50,7 @@ export function createAgentChat(container, { embedded = false, onBeforeSend = ()
 
   async function submit(snapshot) {
     if (busy || !alive || (embedded && !context)) return;
-    const input = snapshot || { runId: runInput.value.trim(), stepIndex: Number(stepInput.value), question: question.value.trim(), hintLevel: Number(level.value) };
+    const input = snapshot || identify({ runId: runInput.value.trim(), stepIndex: Number(stepInput.value), question: question.value.trim(), hintLevel: Number(level.value) });
     if (!input.runId) { alert('请先输入 runId'); return; }
     if ((!snapshot && stepInput.value === '') || !Number.isSafeInteger(input.stepIndex) || input.stepIndex < 0) { alert('请输入有效的步骤索引'); return; }
     if (!input.question) { alert('请输入问题'); return; }
@@ -80,7 +87,7 @@ export function createAgentChat(container, { embedded = false, onBeforeSend = ()
     const oldRun = context?.runId;
     if (!valid || (oldRun && next.runId !== oldRun)) {
       serial++; controller?.abort(); controller = null; loading?.remove(); loading = null; busy = false;
-      failed = null; retry.style.display = 'none';
+      failed = null; retry.style.display = 'none'; resetConversation();
     }
     context = valid ? {runId:next.runId,stepIndex:next.stepIndex} : null;
     runInput.value = context?.runId || ''; stepInput.value = context ? String(context.stepIndex) : '';

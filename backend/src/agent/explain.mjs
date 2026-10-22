@@ -2,6 +2,7 @@ import { getRun } from '../runs/store.js';
 import { checkRateLimit, reserveModelCall, finishModelCall, recordMockCall } from './rate-limit.js';
 import { guardOutput, verifyOutput } from './output-guard.js';
 import { buildPrompt } from './prompt.js';
+import { conversations, validateConversation, resolveFollowup } from './conversation.js';
 import { retrieveKnowledge, loadKnowledgeCards, verifiedCards, sourceRef, isStepQuestion } from '../knowledge/retrieve.js';
 
 function pickCardId(ev) {
@@ -11,14 +12,6 @@ function pickCardId(ev) {
   if (ev === 'found') return 'bs-k08';
   if (ev === 'not-found') return 'bs-k06';
   return 'bs-k01';
-}
-
-function cardText(card) {
-  if (!card) return '';
-  let s = `\n\n📖 ${card.title || card.id}`;
-  if (card.content) s += `：${card.content}`;
-  if (card.sourceId) s += `\n📎 来源：${card.sourceId}`;
-  return s;
 }
 
 const IRRELEVANT_PATTERNS = [
@@ -31,6 +24,25 @@ function isIrrelevantQuestion(question) {
 }
 
 export async function handleAgentExplain(parsedBody, ctx = {}) {
+  if (!validateConversation(parsedBody)) return { status: 400, body: { error: { code: 'INVALID_INPUT', message: 'conversationId与turnId须同时提供，且为8至80位字母、数字或连接符。' } } };
+  const run = typeof parsedBody?.runId === 'string' ? getRun(parsedBody.runId) : null;
+  // Keep the original endpoint validation/errors for legacy and invalid callers.
+  if (!run || !Number.isSafeInteger(parsedBody?.stepIndex) || parsedBody.stepIndex < 0 || parsedBody.stepIndex >= run.steps.length ||
+      typeof parsedBody.question !== 'string' || !parsedBody.question.trim() || parsedBody.question.length > 2000 ||
+      (parsedBody.hintLevel !== undefined && ![1,2,3].includes(parsedBody.hintLevel))) return explain(parsedBody, ctx);
+  const turn = conversations.begin(parsedBody, ctx.req);
+  if (turn.error) return turn.error;
+  if (turn.cached) return turn.cached;
+  const execution = { ...ctx, history: turn.history, topicQuestion: parsedBody.question };
+  try {
+    const result = await explain(parsedBody, execution);
+    // Errors, unrelated questions and missing knowledge never become learning history.
+    if (result.status === 200 && result.body.knowledgeUsed) turn.commit(result, execution.topicQuestion);
+    return result;
+  } finally { turn.release(); }
+}
+
+async function explain(parsedBody, ctx = {}) {
   const mode = ctx.mode || 'mock';
   const req = ctx.req;
   const bodySessionId = parsedBody?.sessionId;
@@ -113,8 +125,10 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
     const catalog = loadKnowledgeCards();
     const topicId = run.algorithm;
     const contextCard = verifiedCards(topicId, catalog).find(item => item.id === cardId);
-    const result = retrieveKnowledge(question, topicId, { cards: catalog, limit: 2 });
-    const generic = isStepQuestion(question);
+    const followup = resolveFollowup(question, ctx.history || []);
+    ctx.topicQuestion = followup.topicQuestion;
+    const result = retrieveKnowledge(followup.query, topicId, { cards: catalog, limit: 2 });
+    const generic = isStepQuestion(question) || (followup.followup && isStepQuestion(followup.topicQuestion));
     if (generic) { result.cards = []; result.matches = []; }
     selectedCards = [...result.cards];
     if ((selectedCards.length || generic) && contextCard && !selectedCards.some(item => item.id === contextCard.id)) selectedCards.push(contextCard);
@@ -156,7 +170,7 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
     try {
       const { DeepSeekProvider } = await import('./providers/deepseek.js');
       const provider = new DeepSeekProvider();
-      const messages = buildPrompt(run, step, level, question, selectedCards);
+      const messages = buildPrompt(run, step, level, question, selectedCards, ctx.history || []);
       const maxTokens = 1024;
       const maximumTokens = Buffer.byteLength(JSON.stringify(messages), 'utf8') + maxTokens + 256;
       const allocation = reserveModelCall(req, bodySessionId, maximumTokens);
@@ -168,7 +182,7 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
       const elapsedMs = Date.now() - startedAt;
 
       const guard = guardOutput(result.content);
-      let finalAnswer = guard.valid ? result.content : (guard.truncated || '请重新思考：当前 mid 与目标值比较，下一步应该往哪边找？');
+      let finalAnswer = guard.valid ? result.content : (guard.truncated || '这次没有收到有效的讲解，请重试这个问题。');
 
       for (const card of selectedCards) {
         const vr = verifyOutput(finalAnswer, card);
@@ -183,7 +197,7 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
           runId,
           stepIndex: idx,
           hintLevel: level,
-          answer: finalAnswer + selectedCards.map(cardText).join(''),
+          answer: finalAnswer,
           stepRefs: [{ runId, stepIndex: idx, event: ev, left, right, mid, knowledgeCard: retrieval.contextCardId, array: arr.length <= 20 ? arr : undefined, target }],
           sourceRefs: refs,
       retrieval,
@@ -252,7 +266,6 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
     answer += `。目标 ${target}。${next}`;
   }
 
-  answer += selectedCards.map(cardText).join('');
 
   return {
     status: 200,
