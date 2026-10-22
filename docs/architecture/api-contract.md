@@ -6,13 +6,14 @@
 
 | 方法与路径 | 当前行为 | 主责 |
 |---|---|---|
-| GET /api/health | 200；ok=true、stage=scaffold、implemented 包含 static-page/health/runs/exercises、modelCallsEnabled=false | 04 |
+| GET /api/health | 200；ok=true、stage=scaffold、implemented 包含 static-page/health/runs/exercises/agent；mode 为 disabled/mock/deepseek，modelCallsEnabled 按实际模式返回 | 04 |
 | POST /api/algorithms/binary-search/runs | 200，创建并返回完整 run | 04 |
 | GET /api/runs/:runId | 200，返回同一完整 run | 04 |
 | GET /api/runs/:runId/steps/:stepIndex | 200，返回 `{runId,step}` | 04 |
 | GET /api/exercises | 200，返回 `{exercises:[...]}`，当前10题 | 04+06 |
 | POST /api/exercises/check | 200，程序判分及固定提示 | 04+07 |
-| POST /api/agent/explain | 默认503 MODEL_NOT_CONFIGURED；显式AGENT_MOCK=true时返回真实步骤驱动的开发模板及引用 | 05，04整合入口 |
+| POST /api/agent/explain | 无Key且未开Mock时503；显式AGENT_MOCK=true优先；否则有Key调用DeepSeek，返回步骤/资料引用 | 05，04整合入口 |
+| GET /api/agent/usage?sessionId=... | 200，当前来源/会话的请求数、失败数、耗时及已知用量；未知值null | 05 |
 | GET /api/knowledge/cards | 501 NOT_IMPLEMENTED；尚未实现检索 | 05+06 |
 
 ## 运行与步骤
@@ -61,12 +62,22 @@ POST /api/exercises/check 输入示例：
 
 错误使用 `{error:{code,message}}`，知识接口的501还含 owner 占位字段。非法JSON及上述输入错误为400 INVALID_INPUT；未知 API 为404 NOT_FOUND；请求解析失败可为400 INVALID_REQUEST。
 
-2026-10-22，PR #15的Mock阶段接口使用 `{runId,stepIndex,question,hintLevel}`：runId为非空字符串，stepIndex为非负安全整数数字，question为非空字符串；hintLevel仅缺省时为1，显式值须为数字1/2/3。客户端stepState不参与权威状态查询。
+## Agent 与聊天（2026-10-22，PR #18修复版）
 
-默认返回503；仅显式设置AGENT_MOCK=true时，从04服务端记录读取实际步骤，按事件读取06的verified知识卡。成功200返回answer、stepRefs、sourceRefs、usage，另保留顶层runId/stepIndex。每级answer标注[Mock开发模式]；stepRefs含真实runId/stepIndex/event和变量；sourceRefs含cardId/title/sourceId/sourceType/chapter/pages/version/verified。本批original的chapter/pages可为null。usage固定 `{model:"mock",cost:0,mock:true}`，不是模型账单。
+请求为 `{runId,stepIndex,question,hintLevel,sessionId?}`。runId是非空字符串；stepIndex是非负安全整数数字，禁止类型转换；question是非空字符串；hintLevel仅缺省时为1，显式仅接受数字1/2/3。客户端stepState不影响真实状态。sessionId仅用于用量展示，不是鉴权或限流身份。
 
-非法参数、损坏JSON及超过10240字节为400 INVALID_INPUT；run不存在/过期为404 RUN_NOT_FOUND；步骤越界为400 STEP_OUT_OF_RANGE。运行/判分仍沿用原契约。调用示例见[Mock接入说明](../../frontend/src/api/README.md)，回归命令 `node --test tests/agent-explain.test.mjs`。
+模式按以下优先级选择：显式AGENT_MOCK=true返回开发模板且不调用模型；否则配置DEEPSEEK_API_KEY时调用真实模型；其余情况503 MODEL_NOT_CONFIGURED。health中的mode和modelCallsEnabled与实际模式一致。
 
-当前只实现事件映射与本地模板，没有实现按问题检索、真实provider、聊天前端、模型超时重试、限流/预算控制或真实usage；这些仍是05后续交付。
+成功200返回runId、stepIndex、hintLevel、answer、stepRefs、sourceRefs、knowledgeUsed、usage。状态来自04记录；按事件选择06的verified知识卡放入prompt。stepRefs含原运行、步骤、事件、变量；sourceRefs含cardId/title/sourceId/sourceType/chapter/pages/version/verified。本批original的chapter/pages可为null。显式Mock正常步骤解释带[Mock开发模式]，usage为 `{model:"mock",cost:0,mock:true}`；无关问题/信息不足的本地固定回复另有irrelevant/infoInsufficient标记。
 
-MODEL_TIMEOUT/504、MODEL_UNAVAILABLE/502、BUDGET_LIMIT/429 是后续计划，尚无对应实现；不得作为当前可用接口承诺。模型预算上限30元，当前没有付费调用。
+真实usage包含model、mock=false、tokens、elapsedMs、cost、costCurrency=CNY及costBasis。tokens有promptTokens/completionTokens/totalTokens；上游缺失或不合法时为null。单价不内置，需依据实际账户/model配置MODEL_INPUT_CNY_PER_MILLION和MODEL_OUTPUT_CNY_PER_MILLION；未配置时cost=null。金额仅为配置估算，非账单。
+
+GET /api/agent/usage?sessionId=... 返回当前socket来源+session、服务启动以来且北京时间当日的requests/failures/elapsedMs/tokensUsed/costUsed/unknownCalls。token未知与费用未知分别标null，不能转换成0。该展示统计重启清零；预算预留账本独立持久保存。
+
+错误：400 INVALID_INPUT（含非法JSON、超过10240字节）、404 RUN_NOT_FOUND、400 STEP_OUT_OF_RANGE、429 RATE_LIMIT_EXCEEDED、429 TOKEN_LIMIT_EXCEEDED、429 BUDGET_EXCEEDED、503 BUDGET_UNAVAILABLE、502 MODEL_CALL_FAILED、504 MODEL_TIMEOUT。超时覆盖响应头与正文，错误不回显上游诊断正文，不假称自动Mock降级；算法、动画和判分仍可独立使用。
+
+限流默认开启，按socket peer来源聚合；忽略session、User-Agent、x-forwarded-for。反向代理部署需另明确可信来源策略。预算调用前同步预留，避免并发重复分配；本地单进程持久账本位于已忽略的data/private/agent-budget.json，保留失败、未知用量及中断调用的预留。默认测试累计30元、每日5元；这是估算额度控制，实际账单仍以服务商为准，多实例需事务共享存储。配置见[Agent说明](../../backend/src/agent/README.md)。
+
+仍未完成按问题检索（知识接口仍501）、正式工作台装配与真实模型效果验收。聊天独立页支持URL传runId/stepIndex，失败重试保存原请求快照。02负责工作台装配，05配合；真实案例由05提供调用记录并配合08评测。
+
+回归：`node --test tests/agent-explain.test.mjs tests/agent-provider.test.mjs tests/agent-real-mode.test.mjs`。测试使用本地桩，不是实际模型效果证据。
