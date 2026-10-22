@@ -88,9 +88,7 @@ const server = createServer(async (request, response) => {
         return json(response, result.status, result.body);
       } catch (err) {
         request.resume();
-        if (err.message === 'BODY_TOO_LARGE') {
-          return json(response, 400, { error: { code: 'INVALID_INPUT', message: '请求体超过 10KB 限制' } });
-        }
+        // BODY_TOO_LARGE 不在这里处理，让它自然抛到外层统一返回 400 INVALID_INPUT
         return json(response, 400, { error: { code: 'INVALID_INPUT', message: 'Agent 请求处理失败', detail: err.message } });
       }
     }
