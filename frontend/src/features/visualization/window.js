@@ -1,23 +1,16 @@
 /**
  * 成员03可视化窗口，从PR #14的dev-viz-window.js恢复并接入正式工作台。
- * 只读服务端run；时间轴、速度与播放意图委托唯一createPlayback实例。
- * 提供网格、平移缩放、取景、窗口拖动/调整、全屏和逐步解释。
+ * 只读服务端run；时间轴与播放意图委托唯一createPlayback实例。
+ * 提供白底画布、平移缩放、取景、窗口调整、全屏和逐步解释。
  */
 
 import { createVisualization } from './index.js';
-import { applyGridOpacity } from './grid.js';
 
-const SPEEDS = [
-  [2000, '2 秒/步'],
-  [1000, '1 秒/步'],
-  [500, '0.5 秒/步'],
-  [250, '0.25 秒/步']
-];
 
 const TEMPLATE = `
 <div class="win-bar">
   <span class="win-dot" aria-hidden="true"></span>
-  <span class="win-title">可视化</span>
+  <span class="win-title">执行过程</span>
   <span class="win-sub">二分查找 · 闭区间 · 数组视图</span>
   <span class="win-actions">
     <button class="win-action" type="button" data-viz-full title="铺满整个屏幕（Esc 退出）">全屏</button>
@@ -36,26 +29,16 @@ const TEMPLATE = `
       </span>
     </div>
     <div class="viewport-body" data-viz-body tabindex="0" aria-label="数组视口，拖拽平移，滚轮缩放，Home自适应取景">
-      <div class="viewport-grid" data-grid="fine" aria-hidden="true"></div>
-      <div class="viewport-grid" data-grid="coarse" aria-hidden="true"></div>
       <div class="viewport-scene" data-viz-scene></div>
     </div>
     <div data-explain-host aria-label="本步解释"></div>
+    <div class="viewport-legend" aria-label="指针图例"><span><b class="legend-left">L</b> 左边界</span><span><b class="legend-right">R</b> 右边界</span><span><b class="legend-mid">M</b> 比较位置</span><span>淡色：已排除</span></div>
     <div class="viewport-warn" data-viz-warn hidden></div>
     <div class="viewport-hint">拖拽平移 · 滚轮缩放 · Home 复位</div>
   </section>
 
   <section class="timeline" aria-label="播放控制">
-    <div class="tl-head">
-      <div class="tl-left">
-        <label class="bl-field">用例
-          <select data-tl-run aria-label="用例"></select>
-        </label>
-        <label class="bl-field">速度
-          <select id="speedSelect" data-tl-speed aria-label="播放速度"></select>
-        </label>
-      </div>
-      <div class="tl-transport" data-tl-transport>
+    <div class="tl-transport" data-tl-transport>
         <button class="tl-btn" type="button" id="resetBtn" data-t="reset" title="跳到开始并停止（重置）" aria-label="重置">
           <svg viewBox="0 0 12 12" aria-hidden="true"><rect x="2" y="2.5" width="1.6" height="9"/><path d="M11 2.5 5.2 7 11 11.5z"/></svg>
         </button>
@@ -72,28 +55,18 @@ const TEMPLATE = `
           <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M1 2.5 6.8 7 1 11.5z"/><rect x="8.4" y="2.5" width="1.6" height="9"/></svg>
         </button>
       </div>
-      <div class="tl-right">
-        <span class="bl-num">起始 <b data-tl-start>1</b></span>
-        <span class="bl-num">当前 <b data-tl-current>1</b></span>
-        <span class="bl-num">结束 <b data-tl-end>1</b></span>
-      </div>
-    </div>
     <div class="tl-ruler" data-tl-ruler tabindex="0" role="slider"
          aria-label="步骤时间轴：点击或按左右方向键跳到某一步"
          aria-valuemin="1" aria-valuemax="1" aria-valuenow="1">
       <div class="tl-ticks" data-tl-ticks></div>
-      <div class="tl-playhead" data-tl-playhead><span class="tl-playhead-label" data-tl-playhead-label>1</span></div>
+      <div class="tl-playhead" data-tl-playhead aria-hidden="true"></div>
     </div>
   </section>
 </div>
 `;
 
 export function createVizWindow(host, {
-  runs = [],
   run = null,
-  speedMs = 1000,
-  onSelectRun = null,
-  onSpeedChange = null,
   onSeek = null,
   onTransport = null
 } = {}) {
@@ -116,14 +89,10 @@ export function createVizWindow(host, {
   const body = $('[data-viz-body]');
   const scene = $('[data-viz-scene]');
   const warn = $('[data-viz-warn]');
-  const grids = { fine: $('[data-grid="fine"]'), coarse: $('[data-grid="coarse"]') };
   const tickHost = $('[data-tl-ticks]');
   const playhead = $('[data-tl-playhead]');
-  const playheadLabel = $('[data-tl-playhead-label]');
   const ruler = $('[data-tl-ruler]');
   const transport = $('[data-tl-transport]');
-  const runSelect = $('[data-tl-run]');
-  const speedSelect = $('[data-tl-speed]');
 
   const view = { x: 0, y: 0, scale: 1, min: 0.01, maxFit: 3, max: 6 };
   let destroyed = false, fitFrame = null;
@@ -136,28 +105,9 @@ export function createVizWindow(host, {
   let currentRun = run;
   let state = { stepIndex: 0, total: 0, playing: false, canPrev: false, canNext: false };
 
-  /* ---------------- 用例 / 速度下拉 ---------------- */
-  runSelect.replaceChildren(...runs.map((item) => {
-    const option = document.createElement('option');
-    option.value = item.runId;
-    option.textContent = item.label || item.runId;
-    return option;
-  }));
-  speedSelect.replaceChildren(...SPEEDS.map(([value, label]) => {
-    const option = document.createElement('option');
-    option.value = String(value);
-    option.textContent = label;
-    if (value === speedMs) option.selected = true;
-    return option;
-  }));
-  if (currentRun) runSelect.value = currentRun.runId;
-  runSelect.addEventListener('change', () => onSelectRun?.(runSelect.value));
-  speedSelect.addEventListener('change', () => onSpeedChange?.(Number(speedSelect.value)));
-
   /* ---------------- 视口：平移 / 缩放 / 取景 ---------------- */
   function applyView() {
     scene.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.scale})`;
-    applyGridOpacity(grids, view.scale);
   }
 
   function warnIfCanvasTiny() {
@@ -245,7 +195,7 @@ export function createVizWindow(host, {
     queueFit();
   });
 
-  /* 全屏：整个窗口铺满屏幕；外壳（标题栏/时间轴）改用页面同色的半透明，画布仍保持深色。
+  /* 全屏：整个白底窗口铺满屏幕。
      全屏会盖住顶栏与分区胶囊，所以标题栏留「退出全屏」，并且 Esc 也能退。 */
   const fullBtn = $('[data-viz-full]');
   let fitTimer = null;
@@ -294,12 +244,12 @@ export function createVizWindow(host, {
       tick.dataset.index = String(index);
       const dot = document.createElement('span');
       dot.className = 'tl-dot';
-      tick.append(dot, document.createTextNode(String(index + 1)));
+      const label = document.createElement('span'); label.className = 'tl-label'; label.textContent = String(index + 1);
+      tick.title = `第 ${index + 1} 步`; tick.append(dot, label);
       return tick;
     }));
     ruler.setAttribute('aria-valuemax', String(count));
-    $('[data-tl-start]').textContent = '1';
-    $('[data-tl-end]').textContent = String(count);
+    updateLabelDensity();
   }
 
   function renderPlayhead() {
@@ -307,15 +257,25 @@ export function createVizWindow(host, {
     const pos = ((state.stepIndex + 0.5) / total) * 100;
     const pct = `${Math.min(100, Math.max(0, pos))}%`;
     playhead.style.left = pct;
-    playheadLabel.style.left = pct;
-    playheadLabel.textContent = String(state.stepIndex + 1);
     ruler.setAttribute('aria-valuenow', String(state.stepIndex + 1));
     tickHost.querySelectorAll('.tl-tick').forEach((tick, index) => {
       tick.classList.toggle('is-done', index < state.stepIndex);
       tick.classList.toggle('is-current', index === state.stepIndex);
       tick.classList.toggle('is-end', index === state.total - 1);
     });
-    $('[data-tl-current]').textContent = String(state.stepIndex + 1);
+    ruler.setAttribute('aria-valuetext', `第 ${state.stepIndex + 1} 步，共 ${state.total} 步`);
+    updateLabelDensity();
+  }
+
+  function updateLabelDensity() {
+    const count = Math.max(1, tickHost.children.length);
+    const cellWidth = ruler.clientWidth / count;
+    const stride = Math.max(1, Math.ceil(26 / Math.max(1, cellWidth)));
+    [...tickHost.children].forEach((tick, index) => {
+      const current = index === state.stepIndex;
+      const nearCurrent = state.stepIndex >= 0 && Math.abs(index - state.stepIndex) * cellWidth < 24;
+      tick.querySelector('.tl-label').style.visibility = current || (!nearCurrent && (index % stride === 0 || index === count - 1)) ? 'visible' : 'hidden';
+    });
   }
 
   function seekFromEvent(event) {
@@ -350,15 +310,9 @@ export function createVizWindow(host, {
   function bindRun(nextRun) {
     currentRun = nextRun;
     if (!nextRun) return;
-    if (!runs.length) {
-      const option = document.createElement('option'); option.value = nextRun.runId;
-      option.textContent = '当前运行 · 目标 ' + nextRun.steps[0].target;
-      runSelect.replaceChildren(option); runSelect.disabled = true;
-    }
     if (viz) viz.destroy();
     scene.replaceChildren();
-    viz = createVisualization(vizHost, { run: nextRun, legend: true, dots: false, explainContainer: explainHost });
-    runSelect.value = nextRun.runId;
+    viz = createVisualization(vizHost, { run: nextRun, legend: false, dots: false, explainContainer: explainHost });
     renderRuler(nextRun.steps.length);
     queueFit();
   }
@@ -381,20 +335,18 @@ export function createVizWindow(host, {
     ruler.setAttribute('aria-disabled', String(!active));
     ruler.tabIndex = active ? 0 : -1;
     root.dataset.empty = String(!active);
-    if (nextState.intervalMs) speedSelect.value = String(nextState.intervalMs);
     if (active) renderPlayhead();
     else {
       ruler.setAttribute('aria-valuenow','0');
       ruler.setAttribute('aria-valuemin','0');
       ruler.setAttribute('aria-valuemax','0');
-      for (const selector of ['[data-tl-start]','[data-tl-current]','[data-tl-end]']) $(selector).textContent = '—';
+      ruler.setAttribute('aria-valuetext','尚未创建运行');
     }
   }
 
   renderRuler(run ? run.steps.length : 0);
   if (run) bindRun(run);
   else {
-    runSelect.append(new Option('尚未创建运行', '')); runSelect.disabled = true;
     const empty = document.createElement('p'); empty.className = 'viz-empty';
     empty.textContent = '填入示例并开始分析，查看真实执行过程。'; scene.append(empty);
     applyView();
@@ -403,6 +355,7 @@ export function createVizWindow(host, {
 
   // Native resizing and responsive layout share the same fitting path.
   const observer = new ResizeObserver(queueFit); observer.observe(body);
+  const rulerObserver = new ResizeObserver(updateLabelDensity); rulerObserver.observe(ruler);
   const bar = $('.win-bar'); let drag = null;
   bar.addEventListener('pointerdown', event => {
     if (event.button !== 0 || event.target.closest('button') || root.dataset.full === 'true' || root.dataset.fitted === 'true') return;
@@ -425,7 +378,7 @@ export function createVizWindow(host, {
     fitView,
     replay: () => viz?.playEnterAnimation(),
     destroy: () => {
-      destroyed = true; observer.disconnect();
+      destroyed = true; observer.disconnect(); rulerObserver.disconnect();
       if (fitFrame !== null) cancelAnimationFrame(fitFrame);
       window.removeEventListener('keydown', onHomeKey);
       window.removeEventListener('keydown', onEsc);

@@ -38,9 +38,10 @@ node tests/workbench.browser.mjs
 node tests/agent-chat.browser.mjs
 node tests/exercises.browser.mjs
 node tests/visualization-window.browser.mjs
+node tests/workbench-layout.browser.mjs
 ```
 
-恢复窗口检查覆盖真实run、时间轴/源码及05/07同步、平移缩放、窗口拖动/全屏/销毁、100项取景与手机布局；截图输出包括工作区、全屏和手机视口。
+布局检查覆盖侧栏、330px源码/四变量、白底、自适应同排时间轴、浮窗保留草稿/回答/步骤归属、知识卡及320px适配。恢复窗口检查覆盖真实run、时间轴/源码及05/07同步、平移缩放、窗口拖动/全屏/销毁、100项取景与手机布局；截图输出包括工作区、全屏和手机视口。
 
 默认使用msedge渠道；TEST_BROWSER_CHANNEL可切换本机渠道。TEST_SCREENSHOT_DIR可指定工作台/练习截图输出目录。脚本自动启动本地临时端口服务并回收进程；Agent只用显式Mock或本地桩，不访问付费模型。07练习脚本以无Key、关闭Mock的真实程序接口验证独立可用性。
 

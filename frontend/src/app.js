@@ -5,14 +5,16 @@ import { createVizWindow } from './features/visualization/window.js';
 import { createPlayback } from './features/playback/index.js';
 import { createExercises } from './features/exercises/index.js';
 import { createAgentChat } from './features/agent/panel.js';
+import { createWorkbenchUI } from './features/workbench/ui.js';
 
 const $ = id => document.getElementById(id);
 let run = null, playback = null, viz = null, pending = null, generation = 0;
-let currentContext = null, speedMs = 1000;
+let currentContext = null;
+const speedMs = 1000;
+const ui = createWorkbenchUI();
 function mountWindow() {
   $('visualization-panel').replaceChildren();
-  viz = createVizWindow($('visualization-panel'), { speedMs,
-    onSpeedChange(ms) { speedMs = ms; playback?.setSpeed(ms); },
+  viz = createVizWindow($('visualization-panel'), {
     onSeek(index) { playback?.seek(index); },
     onTransport(action) { playback?.[action]?.(); }
   });
@@ -31,6 +33,7 @@ const unsubscribeExercises = subscribeStep(exercises.setContext);
 function publish(context) {
   currentContext = context;
   agent.setContext(context);
+  ui.setContext(context);
   $('exercise-context').textContent = context ? `当前运行：第 ${context.stepIndex+1} 步 / 共 ${context.total} 步。题目情境由练习模块单独标明。` : '当前无工作台运行，可独立完成固定题练习。';
   const host = $('exercise-mount');
   if (context) { host.dataset.runId=context.runId; host.dataset.stepIndex=String(context.stepIndex); }
@@ -47,7 +50,7 @@ function clearRun() {
   mountWindow();
   for(const id of ['varLeft','varRight','varValue'])$(id).textContent='—';
   $('varMid').textContent='未计算';$('stepText').textContent='尚未开始';$('step-description').textContent='';$('source-version').textContent='C/C++';
-$('startBtn').disabled=false;$('startBtn').textContent='开始分析';$('run-form').removeAttribute('aria-busy');
+  $('startBtn').disabled=false;$('startBtn').textContent='开始分析';$('run-form').removeAttribute('aria-busy');
   publish(null);
 }
 function render(state) {
@@ -90,7 +93,7 @@ $('visualization-panel').addEventListener('keydown',event=>{
   else if(event.key===' '){event.preventDefault();playback.getState().playing?playback.pause():playback.play();}
 });
 requestJSON('/api/health').then(data=>{$('service-status').textContent=data.mode==='mock'?'服务已连接 · 辅导为 Mock 开发模板':data.modelCallsEnabled?'服务已连接 · 辅导使用真实模型':'服务已连接 · 模型未配置，动画仍可使用';}).catch(()=>{$('service-status').textContent='服务未连接，请按启动说明重试。';});
-window.addEventListener('pagehide',()=>{generation++;pending?.abort();playback?.destroy();viz?.destroy();agent.destroy();unsubscribeExercises();exercises.destroy();listeners.clear();},{once:true});
+window.addEventListener('pagehide',()=>{generation++;pending?.abort();playback?.destroy();viz?.destroy();ui.destroy();agent.destroy();unsubscribeExercises();exercises.destroy();listeners.clear();},{once:true});
 window.addEventListener('pageshow',event=>{if(event.persisted)location.reload();});
 mountWindow();
 publish(null);

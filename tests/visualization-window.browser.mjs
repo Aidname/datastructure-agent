@@ -22,22 +22,23 @@ try {
  const keyCount=await page.evaluate(()=>window.__keys.size);
  await page.click('#fillDemo');await page.click('#startBtn');await page.waitForFunction(()=>window.__steps.at(-1)?.stepIndex===0);
  await page.waitForFunction(()=>document.querySelector('[data-viz-scene]').style.transform.includes('scale('));
- assert.equal(await page.locator('.bsviz-cell').count(),5);assert.equal(await page.locator('.viz-empty').count(),0);assert.equal(await page.locator('.viewport-grid').count(),2);
+ assert.equal(await page.locator('.bsviz-cell').count(),5);assert.equal(await page.locator('.viz-empty').count(),0);assert.equal(await page.locator('.viewport-grid').count(),0);
  assert.equal(await page.locator('[data-tl-ruler]').getAttribute('aria-valuemax'),'5');assert.equal(requests.some(url=>url.includes('/fixtures/')),false);
  const runId=await page.evaluate(()=>window.__steps.at(-1).runId),run=await(await fetch(base+'/api/runs/'+runId)).json();
- assert.equal(run.sourceVersion,'c-v1');passed.push('restored window/grid/empty controls use real server run with no fixture dependency');
+ assert.equal(run.sourceVersion,'c-v1');passed.push('white window/empty controls use real server run with no fixture dependency');
  const ruler=page.locator('[data-tl-ruler]');
  let count=await page.evaluate(()=>window.__steps.length);await page.locator('.tl-tick[data-index="3"]').click();
  assert.equal(await page.evaluate(()=>window.__steps.length),count+1);assert.equal(await page.evaluate(()=>window.__steps.at(-1).stepIndex),3);
  assert.equal(await page.locator('#code-lines li.active').getAttribute('data-line-id'),run.steps[3].lineId);
  await ruler.focus();count=await page.evaluate(()=>window.__steps.length);await page.keyboard.press('ArrowLeft');assert.equal(await page.evaluate(()=>window.__steps.length),count+1);assert.equal(await ruler.getAttribute('aria-valuenow'),'3');
  await page.keyboard.press('Home');assert.equal(await ruler.getAttribute('aria-valuenow'),'1');await page.keyboard.press('End');assert.equal(await ruler.getAttribute('aria-valuenow'),'5');assert.equal(await page.locator('#playBtn').isDisabled(),true);
- await page.click('#resetBtn');await page.selectOption('#speedSelect','2000');await page.click('#playBtn');assert.equal(await page.locator('#playBtn').innerText(),'暂停');
+ await page.click('#resetBtn');await page.click('#playBtn');assert.equal(await page.locator('#playBtn').innerText(),'暂停');
  await page.locator('.tl-tick[data-index="1"]').click();assert.equal(await page.locator('#playBtn').innerText(),'播放');
  count=await page.evaluate(()=>window.__steps.length);await page.waitForTimeout(250);assert.equal(await page.evaluate(()=>window.__steps.length),count);
- await page.fill('#question-input','这一步依据是什么');await page.click('#send-btn');await page.waitForFunction(()=>!document.querySelector('#send-btn').disabled);
+ await page.evaluate(()=>{if(document.querySelector('#tutor-window').hidden)document.querySelector('#tutor-toggle').click();});await page.fill('#question-input','这一步依据是什么');await page.click('#send-btn');await page.waitForFunction(()=>!document.querySelector('#send-btn').disabled);
  assert.equal(await page.locator('#exercise-mount').getAttribute('data-step-index'),'1');
  passed.push('timeline click/keyboard/first/last preserve one pointer, source and 05/07 contexts; seeking stops playback');
+ await page.click('#tutor-close');
  // Fit, zoom and drag move the viewport, never the algorithm step.
  const view=page.locator('[data-viz-body]'),scene=page.locator('[data-viz-scene]');
  await page.click('[data-viz-view-reset]');await page.waitForTimeout(40);let before=await scene.getAttribute('style');
@@ -62,7 +63,7 @@ try {
  await page.setViewportSize({width:390,height:844});await page.waitForFunction(()=>{
  const canvas=document.querySelector('[data-viz-body]').getBoundingClientRect(),content=document.querySelector('[data-viz-scene]').getBoundingClientRect();
  return content.left>=canvas.left-1 && content.right<=canvas.right+1;
-});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));assert.equal(await page.locator('#speedSelect').isVisible(),true);
+});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));assert.equal(await page.locator('#speedSelect').count(),0);
  if(process.env.TEST_SCREENSHOT_DIR){await page.screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/window-mobile.png',fullPage:true});await page.locator('.visualization-region').screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/window-mobile-panel.png'});}
  await page.fill('#arrInput',Array.from({length:100},(_,i)=>i).join(','));await page.fill('#targetInput','99');await page.click('#startBtn');await page.waitForFunction(()=>window.__steps.at(-1)?.stepIndex===0);await page.waitForTimeout(80);
  assert.equal(await page.locator('.bsviz-cell').count(),100);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));

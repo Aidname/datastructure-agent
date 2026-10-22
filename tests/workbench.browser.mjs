@@ -18,7 +18,7 @@ try{
  const context=await page.evaluate(()=>window.__steps.at(-1));assert.equal(context.stepIndex,0);assert.ok(context.runId);assert.equal(await page.locator('#varMid').innerText(),'未计算');
  assert.equal(await page.locator('#code-lines li.active').getAttribute('data-line-id'),context.step.lineId);
  assert.equal(await page.locator('#exercise-mount').getAttribute('data-run-id'),context.runId);
- await page.fill('#question-input','这一步依据是什么？');await page.click('#send-btn');await page.waitForFunction(()=>!document.querySelector('#send-btn').disabled);
+ await page.evaluate(()=>{if(document.querySelector('#tutor-window').hidden)document.querySelector('#tutor-toggle').click();});await page.fill('#question-input','这一步依据是什么？');await page.click('#send-btn');await page.waitForFunction(()=>!document.querySelector('#send-btn').disabled);
  const firstQuestion=posts.find(r=>r.url.endsWith('/api/agent/explain')).body;assert.equal(firstQuestion.runId,context.runId);assert.equal(firstQuestion.stepIndex,0);
  passed.push('normal service entry, true run, initial source/variables/07 context and initial Agent question');
 
@@ -26,11 +26,11 @@ try{
  assert.equal(await page.locator('#code-lines li.active').getAttribute('data-line-id'),'calc-mid');
  await page.locator('#visualization-panel').focus();await page.keyboard.press('ArrowRight');assert.match(await page.locator('#stepText').innerText(),/第 3 步/);assert.equal(await page.locator('#varMid').innerText(),'未计算');
  await page.click('#resetBtn');assert.match(await page.locator('#stepText').innerText(),/第 1 步/);assert.equal(await page.inputValue('#targetInput'),'7');
- await page.selectOption('#speedSelect','250');await page.click('#playBtn');await page.waitForFunction(()=>document.querySelector('#stepText').textContent.includes('第 5 步'));
+ await page.click('#playBtn');await page.waitForFunction(()=>document.querySelector('#stepText').textContent.includes('第 5 步'));
  assert.equal(await page.locator('#nextBtn').isDisabled(),true);assert.equal(await page.locator('#playBtn').isDisabled(),true);assert.match(await page.locator('#step-description').innerText(),/下标 3/);
- await page.click('#resetBtn');await page.click('#playBtn');await page.fill('#question-input','为什么必须有序');await page.click('#send-btn');await page.waitForFunction(()=>!document.querySelector('#send-btn').disabled);
+ await page.click('#resetBtn');await page.click('#playBtn');await page.evaluate(()=>{if(document.querySelector('#tutor-window').hidden)document.querySelector('#tutor-toggle').click();});await page.fill('#question-input','为什么必须有序');await page.click('#send-btn');await page.waitForFunction(()=>!document.querySelector('#send-btn').disabled);
  assert.equal(await page.locator('#playBtn').innerText(),'播放');
- passed.push('single-step/keyboard, null mid, reset preserving input, speed/play/end, question pauses playback');
+ passed.push('single-step/keyboard, null mid, reset preserving input, play/end, question pauses playback');
 
  await page.click('#playBtn');await page.fill('#targetInput','4');const count=await page.evaluate(()=>window.__steps.length);await page.waitForTimeout(600);
  assert.equal(await page.evaluate(()=>window.__steps.length),count);assert.equal(await page.locator('#code-lines li.active').count(),0);assert.equal(await page.locator('#send-btn').isDisabled(),true);assert.equal(await page.evaluate(()=>window.__steps.at(-1)),null);
@@ -54,7 +54,7 @@ try{
  await requests[0].fulfill({status:200,contentType:'application/json',body:JSON.stringify(old)}).catch(()=>{});await page.waitForTimeout(50);assert.equal(await page.evaluate(()=>window.__steps.at(-1).runId),fresh.runId);
  await page.unroute('**/api/algorithms/binary-search/runs');passed.push('aborted old creation cannot overwrite a new run');
 
- let answerRoute;await page.route('**/api/agent/explain',route=>{answerRoute=route;});await page.fill('#question-input','这一步为什么');await page.click('#send-btn');while(!answerRoute)await new Promise(r=>setTimeout(r,5));
+ let answerRoute;await page.route('**/api/agent/explain',route=>{answerRoute=route;});await page.evaluate(()=>{if(document.querySelector('#tutor-window').hidden)document.querySelector('#tutor-toggle').click();});await page.fill('#question-input','这一步为什么');await page.click('#send-btn');while(!answerRoute)await new Promise(r=>setTimeout(r,5));
  await page.fill('#targetInput','9');await answerRoute.fulfill({status:200,contentType:'application/json',body:JSON.stringify({answer:'不应显示的旧运行回答',runId:fresh.runId,stepIndex:0})}).catch(()=>{});await page.waitForTimeout(50);
  assert.equal(await page.getByText('不应显示的旧运行回答',{exact:true}).count(),0);assert.equal(await page.locator('#send-btn').isDisabled(),true);await page.unroute('**/api/agent/explain');passed.push('input invalidation cancels old Agent replies');
 

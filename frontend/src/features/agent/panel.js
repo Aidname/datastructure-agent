@@ -9,7 +9,12 @@ const markup = `
 
 export function createAgentChat(container, { embedded = false, onBeforeSend = () => {} } = {}) {
   container.innerHTML = markup;
-  if (embedded) container.classList.add('embedded');
+  if (embedded) {
+    container.classList.add('embedded');
+    const original = container.querySelector('#question-input'), textarea = document.createElement('textarea');
+    for (const attr of original.attributes) if (attr.name !== 'type') textarea.setAttribute(attr.name, attr.value);
+    textarea.rows = 2; original.replaceWith(textarea);
+  }
   const $ = id => container.querySelector('#' + id);
   const messages = $('chat-messages'), send = $('send-btn'), retry = $('retry-btn'), question = $('question-input');
   const runInput = $('run-id-input'), stepInput = $('step-index-input'), level = $('hint-level-select');

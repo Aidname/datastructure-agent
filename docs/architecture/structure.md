@@ -29,4 +29,4 @@
 
 截至2026-10-23，main已合并PR #21：真实run、动画播放、源码变量、Agent/检索、过程题和本机记录均已接入。模型未配置且未开Mock时明确503；知识目录/检索与程序判分无需模型Key。09设计原型位于docs/prototype，通过专用预览服务运行；它复用共享引擎在浏览器本地计算，以prototype前缀标识和独立本机记录演示，不视作生产模块联调。生产消费应读取服务端真实run/step；原型和mock不得替代真实模型或端到端验收。详见[任务看板](../team/progress.md)。
 
-测试统一放tests/，内容校验保留content/validate.mjs，实际验收证据放docs/architecture/evidence/；日常命令见[测试说明](../../tests/README.md)。早期完整dev页面及模拟fixtures已由正式入口替代；其中03可复用窗口/网格已在本分支恢复为生产模块window.js/window.css/grid.js；根目录不再存放临时审查脚本和输出。
+测试统一放tests/，内容校验保留content/validate.mjs，实际验收证据放docs/architecture/evidence/；日常命令见[测试说明](../../tests/README.md)。早期完整dev页面及模拟fixtures已由正式入口替代；其中03可复用窗口已在本分支恢复为生产模块window.js/window.css，并按用户确认改为白底及并排工作台；根目录不再存放临时审查脚本和输出。

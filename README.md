@@ -62,7 +62,7 @@ Invoke-RestMethod http://127.0.0.1:3000/api/exercises
 
 2026-10-14 的本地核验通过静态检查、页面及健康接口检查，详见 [接手核验记录](docs/architecture/takeover-check.md)。这次启动核验由 Codex 在本地副本完成；另一位队员从干净副本启动的验收仍待进行。
 
-03可视化窗口已在本分支恢复：深色网格、平移缩放、时间轴跳步、最大化/全屏接入当前真实运行。启动后刷新工作台即可查看；[恢复说明与截图](docs/architecture/visualization-window-check-20261023.md)。
+工作台已按用户确认的09原型模式调整：侧栏可收起，代码与白底动画并排，四变量横排，时间轴位于播放栏右侧；步骤辅导和知识卡收进右下悬浮窗口。启动后刷新即可查看；[当前布局与验收截图](docs/architecture/workbench-layout-check-20261023.md)。
 
 ## 开发检查
 
