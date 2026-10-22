@@ -136,6 +136,13 @@ export function createPlayback({ runId = 'unknown-run', steps = [], intervalMs =
     return getState();
   }
 
+  /** 时间轴跳步：仍只移动这一个播放指针，停止旧计时器并广播一次。 */
+  function seek(index) {
+    if (destroyed) return getState();
+    if (!Number.isSafeInteger(index) || index < 0 || index > lastIndex) throw new Error('步骤索引超出范围');
+    stopTimer(); cursor = index; broadcast(); return getState();
+  }
+
   function setSpeed(ms) {
     if (destroyed) return getState();
     if (!Number.isFinite(ms) || ms <= 0) throw new Error('速度必须是正数毫秒');
@@ -160,5 +167,5 @@ export function createPlayback({ runId = 'unknown-run', steps = [], intervalMs =
     destroyed = true;
   }
 
-  return { play, pause, next, prev, reset, setSpeed, getState, getDiagnostics, destroy };
+  return { play, pause, next, prev, reset, seek, setSpeed, getState, getDiagnostics, destroy };
 }

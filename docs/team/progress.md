@@ -19,8 +19,8 @@
 | 成员 | 主责 | 当前可核验状态 | 依据 | 下一步 |
 |---|---|---|---|---|
 | 01 包学丰 | 统筹与集成、公共契约 | 统筹文档已合并；后端审查完成，本轮同步现状与契约；全流程集成待完成 | [#2](https://github.com/tw1l1ghtcc/datastructure-agent/pull/2)、[#8](https://github.com/tw1l1ghtcc/datastructure-agent/pull/8)、[接口对齐](../architecture/contract-alignment.md) | 收集消费者联调结果、剩余登记与验收证据 |
-| 02 蒋书瑞 | 工作台、前端入口 | PR #17已合并：输入/请求隔离、源码/变量、03播放动画、05辅导已装配并通过本地检查 | [#17](https://github.com/tw1l1ghtcc/datastructure-agent/pull/17)、[验收](../architecture/workbench-check-20261022.md) | 08独立复核；本分支已接07挂载/上下文 |
-| 03 冯玄 | 动画与播放 | 核心已合并，本分支02已在正式入口消费；08复核待完成 | [#14](https://github.com/tw1l1ghtcc/datastructure-agent/pull/14)、[02接入说明](../../frontend/src/features/visualization/C02-INTEGRATION.md) | 配合08复核正式工作台；旧开发页已清理 |
+| 02 蒋书瑞 | 工作台、前端入口 | PR #17已合并：输入/请求隔离、源码/变量、03播放动画、05辅导已装配并通过本地检查 | [#17](https://github.com/tw1l1ghtcc/datastructure-agent/pull/17)、[验收](../architecture/workbench-check-20261022.md) | 08独立复核；本分支由01完成代码/动画并排、横排变量、可收起侧栏及悬浮辅导，已接07挂载/上下文 |
+| 03 冯玄 | 动画与播放 | 核心已合并，本分支02已在正式入口消费；08复核待完成 | [#14](https://github.com/tw1l1ghtcc/datastructure-agent/pull/14)、[02接入说明](../../frontend/src/features/visualization/C02-INTEGRATION.md) | 本分支由01恢复03窗口、平移缩放和真实时间轴，并按用户确认改为白底；配合08复核 |
 | 04 林为峰 | 引擎、run、后端入口 | 后端模块已合并并通过01独立检查，已由02/03/05消费；本分支07读题/判分联调通过，08独立复核待完成 | [#10](https://github.com/tw1l1ghtcc/datastructure-agent/pull/10) | 配合02/03/05/07联调，确认容量策略及07接入 |
 | 05 郑瀚 | Agent、检索与聊天 | 模型适配/聊天与问题检索已合并；本分支已消费工作台上下文，真实效果待验收 | [#18](https://github.com/tw1l1ghtcc/datastructure-agent/pull/18)、[#20](https://github.com/tw1l1ghtcc/datastructure-agent/pull/20) | 真实Key联调，配合08提供真实对比及用量证据 |
 | 06 秦文昊 | 知识与题目 | 内容已合并，04读题/判分通过；其余接入及交叉验收待完成 | [#7](https://github.com/tw1l1ghtcc/datastructure-agent/pull/7)、[接入说明](../../content/exercises/HANDOFF.md) | 配合05检索、07练习、08复核；复核09已交40项覆盖与动画规划 |

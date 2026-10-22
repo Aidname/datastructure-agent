@@ -10,13 +10,13 @@
 
 ## 03动画与唯一播放指针
 
-复用 `createVisualization` 与 `createPlayback`，不修改03的实现，不自己维护第二套stepIndex。按钮调用prev/next/play/pause/reset/setSpeed；reset停止并返回步骤0，保留当前输入和run。初始步骤由装配层显式同步给全部消费者。输入变化、换run、卸载均销毁旧实例。
+复用03的createVizWindow（内部createVisualization）与createPlayback；窗口已从原03开发交付恢复并适配正式页面，不自己维护第二套stepIndex。按钮调用prev/next/play/pause/reset；界面移除速度选择，默认1秒/步，底层setSpeed保留，时间轴及起止跳步调用seek；reset停止并返回步骤0，保留当前输入和run。初始步骤由装配层显式同步给全部消费者。输入变化、换run、卸载均销毁旧实例。
 
-键盘仅在动画区处理：左右单步、空格播放/暂停；输入、按钮、链接等控件保留原生按键行为，不重复推进。动画区对长数组局部横向滚动，桌面/窄屏适配由02宿主样式承担。
+键盘仅在动画区处理：左右单步、空格播放/暂停；视口Home自适应取景，时间轴独立处理左右/Home/End并停止冒泡，避免一次跳两步；输入、按钮、链接等控件保留原生按键行为，不重复推进。视口采用白底无背景网格，支持平移缩放、居中取景及窗口全屏；长数组先适配视口再按需放大。桌面/窄屏适配由window.css与宿主workbench.css承担；源码栏330px与动画并排，四变量同排，时间轴在播放按钮右侧，原工作台格子尺寸覆盖已移除。
 
 ## 05聊天
 
-`createAgentChat(container,{embedded:true,onBeforeSend})`挂载原05的共享聊天逻辑；工作台直接调用setContext，隐藏手工运行/步骤输入。点击发送先暂停播放。相同步骤/同一run的迟到回答标注原步骤；换run或输入失效时取消旧问答，旧结果不能写入新运行。独立chat.html仍可单独使用。
+`createAgentChat(container,{embedded:true,onBeforeSend})`挂载原05的共享聊天逻辑；工作台直接调用setContext，隐藏手工运行/步骤输入。ui.js管理可收起侧栏、右下可拖动浮窗及知识卡入口；浮窗收起保留DOM、草稿和历史，打开不暂停。点击发送先暂停播放。相同步骤/同一run的迟到回答标注原步骤；换run或输入失效时取消旧问答，旧结果不能写入新运行。独立chat.html仍可单独使用。
 
 ## 07挂载与上下文
 
@@ -37,6 +37,7 @@ node --test tests/workbench-input.test.mjs tests/knowledge-retrieval.test.mjs te
 # 本地已有Playwright与Edge，可选设置TEST_PLAYWRIGHT_MODULE
 node tests/workbench.browser.mjs
 node tests/agent-chat.browser.mjs
+node tests/workbench-layout.browser.mjs
 ```
 
-工作台浏览器验收包括实际启动入口、初始问答上下文、源码/变量/动画同步、键盘、播放/暂停/重置/速度/末步、输入清空、错误提示、迟到响应与旧问答取消、桌面/手机布局。模型测试使用Mock/本地桩，不代表真实模型效果和08独立验收。
+工作台浏览器验收包括实际启动入口、初始问答上下文、源码/变量/动画同步、键盘、播放/暂停/重置/末步、输入清空、错误提示、迟到响应与旧问答取消、桌面/手机布局。模型测试使用Mock/本地桩，不代表真实模型效果和08独立验收。

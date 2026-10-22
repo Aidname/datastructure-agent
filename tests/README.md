@@ -16,6 +16,7 @@ npm run check:content
 | 文件 | 用途及保留理由 |
 |---|---|
 | backend-acceptance.mjs | 由原pr10-full-audit.mjs整理；人工oracle、882组输入轨迹不变量、源码映射、真实HTTP、题库判分、TTL和关闭清理，共26组；按当前接口运行，失败返回非零退出码 |
+| playback-seek.test.mjs | 时间轴停止原计时器、复用原快照、只广播一次、非法跳步和销毁隔离 |
 | workbench-input.test.mjs | 输入边界及完整run/源码映射校验 |
 | agent-explain.test.mjs | 真实步骤/来源、三档提示、请求限制及缺配置处理 |
 | agent-provider.test.mjs | 超时、用量、来源限流、预算持久预留 |
@@ -25,7 +26,7 @@ npm run check:content
 | fixtures/deepseek-fetch.mjs | Agent真实模式测试使用的本地桩，不是生产模型或效果证据 |
 | *.browser.mjs | 正式入口、动画/代码/变量、聊天、三级提示、错题记录、旧请求隔离及手机布局 |
 
-npm test运行所有.test.mjs，当前36项；独立后端验收另用test:backend，避免普通单元回归重复启动整套审查。TEST_REPORT_PATH可指定后端结果输出文件，建议artifacts/local/backend-acceptance-results.json；默认不写结果，不覆盖历史证据。无Git的源代码副本仍可运行检查，报告中的提交信息为null。
+npm test运行所有.test.mjs，当前38项；独立后端验收另用test:backend，避免普通单元回归重复启动整套审查。TEST_REPORT_PATH可指定后端结果输出文件，建议artifacts/local/backend-acceptance-results.json；默认不写结果，不覆盖历史证据。无Git的源代码副本仍可运行检查，报告中的提交信息为null。
 
 ## 浏览器检查
 
@@ -36,7 +37,11 @@ npm test运行所有.test.mjs，当前36项；独立后端验收另用test:backe
 node tests/workbench.browser.mjs
 node tests/agent-chat.browser.mjs
 node tests/exercises.browser.mjs
+node tests/visualization-window.browser.mjs
+node tests/workbench-layout.browser.mjs
 ```
+
+布局检查覆盖侧栏、330px源码/四变量、白底、自适应同排时间轴、浮窗保留草稿/回答/步骤归属、知识卡及320px适配。恢复窗口检查覆盖真实run、时间轴/源码及05/07同步、平移缩放、窗口拖动/全屏/销毁、100项取景与手机布局；截图输出包括工作区、全屏和手机视口。
 
 默认使用msedge渠道；TEST_BROWSER_CHANNEL可切换本机渠道。TEST_SCREENSHOT_DIR可指定工作台/练习截图输出目录。脚本自动启动本地临时端口服务并回收进程；Agent只用显式Mock或本地桩，不访问付费模型。07练习脚本以无Key、关闭Mock的真实程序接口验证独立可用性。
 
