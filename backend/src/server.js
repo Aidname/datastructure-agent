@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { handleCreateRun, handleGetRun, handleGetStep } from './routes/runs.js';
 import { handleGetExercises, handleCheckExercise } from './routes/exercises.js';
 import { getUsage } from './agent/rate-limit.js';
+import { knowledgeResponse } from './knowledge/retrieve.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const frontendRoot = resolve(here, '../../frontend');
@@ -41,7 +42,7 @@ const server = createServer(async (request, response) => {
       return json(response, 200, {
         ok: true,
         stage: 'scaffold',
-        implemented: ['static-page', 'health', 'runs', 'exercises', 'agent'],
+        implemented: ['static-page', 'health', 'runs', 'exercises', 'agent', 'knowledge'],
         modelCallsEnabled: hasRealModel,
         mode: mockEnabled ? 'mock' : (hasRealModel ? 'deepseek' : 'disabled')
       });
@@ -128,7 +129,8 @@ const server = createServer(async (request, response) => {
     }
 
     if (pathname === '/api/knowledge/cards' && method === 'GET') {
-      return json(response, 501, { error: { code: 'NOT_IMPLEMENTED', message: '知识检索接口尚未接入', owner: 'M05+M06' } });
+      const result = knowledgeResponse(new URL(request.url, 'http://localhost').searchParams);
+      return json(response, result.status, result.body);
     }
 
     // 6. 静态文件

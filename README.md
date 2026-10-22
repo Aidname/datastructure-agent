@@ -47,7 +47,7 @@ npm start
 Invoke-RestMethod http://127.0.0.1:3000/api/health
 ```
 
-当前预期为 `ok=true`、`stage=scaffold`、`implemented` 包含 `static-page/health/runs/exercises/agent`。mode为disabled/mock/deepseek，modelCallsEnabled只在真实模式为true。正式工作台仍待整合，独立聊天页可用；知识检索接口仍501。检查结束后在运行 `npm start` 的窗口按 Ctrl+C 停止服务。
+当前预期为 `ok=true`、`stage=scaffold`、`implemented` 包含 `static-page/health/runs/exercises/agent/knowledge`。mode为disabled/mock/deepseek，modelCallsEnabled只在真实模式为true。正式工作台仍待整合，独立聊天页可用；知识接口已支持按问题查询verified知识卡，见[检索说明](backend/src/knowledge/README.md)。检查结束后在运行 `npm start` 的窗口按 Ctrl+C 停止服务。
 
 可在服务运行时验证完整轨迹：
 

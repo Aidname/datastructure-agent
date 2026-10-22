@@ -1,6 +1,6 @@
 # Agent 服务（成员05）
 
-本模块已实现：真实步骤读取、按事件选取 verified 知识卡、模板 Mock、DeepSeek HTTP 适配、三级提示词、基础输出规则、独立聊天页、限流、用量记录及预算预留。规则检查不能保证模型回答全部正确。
+本模块已实现：真实步骤读取、按问题检索 verified 知识卡并补充事件上下文、模板 Mock、DeepSeek HTTP 适配、三级提示词、基础输出规则、独立聊天页、限流、用量记录及预算预留。规则检查不能保证模型回答全部正确。
 
 ## 启动
 
@@ -16,9 +16,9 @@ Node >=22.9，使用内置 fetch，无新增运行依赖。根目录复制 `.env
 
 ## 接口与用量
 
-`POST /api/agent/explain` 输入 `{runId,stepIndex,question,hintLevel,sessionId?}`。参数严格校验，状态只来自服务端，不采用客户端伪造变量。sessionId仅用于展示统计，不是权限或限流身份。
+`POST /api/agent/explain` 输入 `{runId,stepIndex,question,hintLevel,sessionId?}`。question最多2000字符，参数严格校验，状态只来自服务端，不采用客户端伪造变量。sessionId仅用于展示统计，不是权限或限流身份。
 
-成功返回 `{runId,stepIndex,hintLevel,answer,stepRefs,sourceRefs,knowledgeUsed,usage}`。真实 usage包含模型、tokens、elapsedMs、cost/CNY及估算说明；上游未给完整用量或未配置价格时保留null，不能当成免费。输入/输出单价必须依据实际模型和账户核对后填入环境变量，代码不内置未核实价格。
+成功返回 `{runId,stepIndex,hintLevel,answer,stepRefs,sourceRefs,knowledgeUsed,retrieval,usage}`。按问题检索最多2张卡并补当前事件卡；泛化提问使用步骤卡；无匹配时不调用模型、不编造引用。知识查询接口与排序方法见[检索说明](../knowledge/README.md)。真实 usage包含模型、tokens、elapsedMs、cost/CNY及估算说明；上游未给完整用量或未配置价格时保留null，不能当成免费。输入/输出单价必须依据实际模型和账户核对后填入环境变量，代码不内置未核实价格。
 
 `GET /api/agent/usage?sessionId=...` 返回本次服务进程、北京时间当日、同socket来源与session的请求次数、失败数、累计耗时、tokensUsed/costUsed。出现未知调用时累计值为null；页面与POST使用相同session。统计重启清零，**预算预留不会随统计清零**。
 
@@ -34,9 +34,9 @@ Node >=22.9，使用内置 fetch，无新增运行依赖。根目录复制 `.env
 
 ```powershell
 npm run check
-node --test tests/agent-explain.test.mjs tests/agent-provider.test.mjs tests/agent-real-mode.test.mjs
+node --test tests/knowledge-retrieval.test.mjs tests/agent-explain.test.mjs tests/agent-provider.test.mjs tests/agent-real-mode.test.mjs
 ```
 
 测试仅使用显式加载的本地模型桩和虚拟Key，不访问付费模型。浏览器检查脚本为 `tests/agent-chat.browser.mjs`，需要本地可用的 Playwright 和 Edge；可用 `TEST_PLAYWRIGHT_MODULE` 指定已安装模块的入口绝对路径，然后运行 `node tests/agent-chat.browser.mjs`。
 
-剩余：当前知识选择是按事件映射，尚未实现按学生问题检索；聊天页尚未由02装配进正式工作台，需要与02/03同步当前run和步骤；尚无真实Key端到端证据及08所需3组定制对比。不得将本地桩测试当成真实模型效果验收。以上按已有分工另做，不宣称本PR完成整个05任务。
+剩余：聊天页尚未由02装配进正式工作台，需要与02/03同步当前run和步骤；尚无真实Key端到端证据及08所需3组定制对比。不得将本地桩测试当成真实模型效果验收。以上按已有分工另做，不宣称本PR完成整个05任务。

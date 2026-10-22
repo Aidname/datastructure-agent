@@ -11,7 +11,7 @@
 | runId | string | 是 | 运行ID，由 `/api/algorithms/binary-search/runs` 创建 |
 | stepIndex | integer ≥ 0 | 是 | 步骤索引，从 0 开始，必须在 run.steps 范围内 |
 | hintLevel | integer (1-3) | 否 | 提示级别：1=基础信息，2=详细分析，3=完整推理链。默认 1 |
-| question | string | 是 | 用户追问内容，必须为非空字符串（trim后不能空白） |
+| question | string | 是 | 用户追问内容，1至2000字符，trim后不能空白 |
 
 ### 响应
 
@@ -81,6 +81,6 @@
 
 权威契约见[API契约](../../../docs/architecture/api-contract.md)。hintLevel仅缺省时为1，显式null等非法值拒绝。
 
-真实模式及配置见[Agent说明](../../../backend/src/agent/README.md)。可选sessionId用于统计，GET /api/agent/usage?sessionId=...须使用相同标识。未知token/费用分别为null；不要显示为0。聊天页为 /src/features/agent/chat.html?runId=实际ID&stepIndex=1。正式工作台装配与按问题检索仍待协作。
+真实模式及配置见[Agent说明](../../../backend/src/agent/README.md)。可选sessionId用于统计，GET /api/agent/usage?sessionId=...须使用相同标识。未知token/费用分别为null；不要显示为0。聊天页为 /src/features/agent/chat.html?runId=实际ID&stepIndex=1。按问题检索已接入；返回新增retrieval说明匹配卡和步骤卡，无匹配会提示资料不足且sourceRefs为空。正式工作台装配仍待协作。知识接口见[检索说明](../../../backend/src/knowledge/README.md)。
 
-回归：node --test tests/agent-explain.test.mjs tests/agent-provider.test.mjs tests/agent-real-mode.test.mjs。真实调用测试使用本地桩，不产生模型费用。
+回归：node --test tests/knowledge-retrieval.test.mjs tests/agent-explain.test.mjs tests/agent-provider.test.mjs tests/agent-real-mode.test.mjs。真实调用测试使用本地桩，不产生模型费用。
