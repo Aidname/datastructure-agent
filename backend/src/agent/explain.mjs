@@ -55,7 +55,7 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
   const req = ctx.req;
   const bodySessionId = parsedBody?.sessionId;
 
-  // ===== 统一校验（所有模式共用，放在模式分支之前）=====
+  // ===== 统一校验（所有模式共用）=====
   if (!parsedBody || typeof parsedBody !== 'object' || Array.isArray(parsedBody)) {
     return { status: 400, body: { error: { code: 'INVALID_INPUT', message: '请求体必须为 JSON 对象' } } };
   }
@@ -70,13 +70,16 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
       return { status: 400, body: { error: { code: 'INVALID_INPUT', message: 'hintLevel 必须为 1、2 或 3' } } };
     }
   }
+
+  // ===== P2 FIX: 索引类型校验，禁止任何类型转换 =====
   if (stepIndex === undefined || stepIndex === null) {
     return { status: 400, body: { error: { code: 'INVALID_INPUT', message: 'stepIndex 为必填' } } };
   }
-  const idx = Number(stepIndex);
-  if (!Number.isSafeInteger(idx) || idx < 0) {
-    return { status: 400, body: { error: { code: 'INVALID_INPUT', message: 'stepIndex 必须为非负整数' } } };
+  if (typeof stepIndex !== 'number' || !Number.isSafeInteger(stepIndex) || stepIndex < 0) {
+    return { status: 400, body: { error: { code: 'INVALID_INPUT', message: 'stepIndex 必须为非负整数（禁止字符串等类型转换）' } } };
   }
+  const idx = stepIndex; // 直接用原值，不再 Number()
+
   if (typeof question !== 'string' || !question.trim()) {
     return { status: 400, body: { error: { code: 'INVALID_INPUT', message: 'question 必须为非空字符串' } } };
   }
@@ -101,13 +104,15 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
   const ev = step.event;
   const stepNo = step.stepIndex ?? idx;
 
-  // 信息不足判断
-  if (arr.length === 0 && ev !== 'not-found') {
+  // ===== P2 FIX: 空数组判断修正 =====
+  // 只有 step 完全没有 event（真正信息不足）才返回信息不足
+  // 空数组 + 有 event（如 init）是合法状态，应正常解释
+  if (!ev && arr.length === 0) {
     return {
       status: 200,
       body: {
         runId, stepIndex: idx,
-        answer: '当前步骤的数组信息为空，无法进行分析。请确认算法已正确运行。',
+        answer: '当前步骤信息不足，无法进行分析。请确认算法已正确运行。',
         stepRefs: [{ runId, stepIndex: idx, event: ev, left, right, mid }],
         sourceRefs: [],
         usage: { model: 'mock', cost: null, mock: true, infoInsufficient: true }
@@ -134,7 +139,7 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
     };
   }
 
-  // ===== 限流（统一用 req + bodySessionId）=====
+  // ===== 限流 =====
   if (process.env.RATE_LIMIT === 'true' && req) {
     const limitResult = checkRateLimit(req, bodySessionId);
     if (!limitResult.allowed) {
@@ -157,7 +162,9 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
       const provider = new DeepSeekProvider();
       const messages = buildPrompt(run, step, level, question, card);
       const startedAt = Date.now();
-      const result = await provider.chat(messages, { timeoutMs: 15000 });
+      // P2 FIX: 不再硬编码 15000，读 MODEL_TIMEOUT_MS
+      const timeoutMs = Number(process.env.MODEL_TIMEOUT_MS) || 15000;
+      const result = await provider.chat(messages, { timeoutMs });
       const elapsedMs = Date.now() - startedAt;
 
       const guard = guardOutput(result.content);
@@ -168,7 +175,6 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
         if (!vr.pass) finalAnswer = vr.suggestion;
       }
 
-      // 计入用量
       if (result.usage && req) {
         consumeTokens(req, bodySessionId, result.usage.totalTokens, result.cost || 0);
       }
@@ -196,13 +202,14 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
       };
     } catch (err) {
       if (err.message === 'MODEL_TIMEOUT') {
-        return { status: 504, body: { error: { code: 'MODEL_TIMEOUT', message: '模型响应超时，已降级为 Mock 模式', degraded: true } } };
+        // P2 FIX: 移除"已降级为 Mock"的误导文案
+        return { status: 504, body: { error: { code: 'MODEL_TIMEOUT', message: '模型响应超时，请稍后重试', degraded: false } } };
       }
       return { status: 502, body: { error: { code: 'MODEL_CALL_FAILED', message: '模型调用失败，请稍后重试', detail: err.message } } };
     }
   }
 
-  // ===== Mock 模式（原有逻辑，不改动）=====
+  // ===== Mock 模式 =====
   const prefix = '[Mock开发模式] ';
   let answer = '';
 
