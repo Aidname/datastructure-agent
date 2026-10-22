@@ -1,0 +1,47 @@
+*{
+  box-sizing: border-box;
+}
+.container{
+  max-width: 900px;
+  margin:20px auto;
+  padding:0 10px;
+}
+.input-area{
+  margin-bottom:16px;
+}
+.input-area input{
+  padding:6px;
+  width:260px;
+  margin:4px;
+}
+button{
+  padding:6px 12px;
+  cursor: pointer;
+}
+.msg{
+  color:red;
+  min-height:22px;
+  margin:6px 0;
+}
+.main-row{
+  display:flex;
+  gap:20px;
+  margin:16px 0;
+}
+.panel{
+  flex:1;
+  border:1px solid #aaa;
+  padding:12px;
+}
+#codePanel{
+  font-family: Consolas;
+  font-size:13px;
+  white-space: pre-wrap;
+  line-height:1.6;
+}
+.highlight-line{
+  background-color: #ffdd77;
+}
+.control-area{
+  margin-top:12px;
+}
