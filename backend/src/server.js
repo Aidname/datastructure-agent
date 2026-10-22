@@ -81,15 +81,16 @@ const server = createServer(async (request, response) => {
         try {
           input = body ? JSON.parse(body) : {};
         } catch {
-          return json(response, 400, { error: { code: 'INVALID_REQUEST', message: '请求体不是合法 JSON' } });
+          return json(response, 400, { error: { code: 'INVALID_INPUT', message: '请求体不是合法 JSON' } });
         }
         const { handleAgentExplain } = await import('./agent/explain.mjs');
         const result = await handleAgentExplain(input);
         return json(response, result.status, result.body);
       } catch (err) {
         request.resume();
-        // BODY_TOO_LARGE 不在这里处理，让它自然抛到外层统一返回 400 INVALID_INPUT
-        return json(response, 400, { error: { code: 'INVALID_INPUT', message: 'Agent 请求处理失败', detail: err.message } });
+        // 与运行/判分接口共用请求大小错误处理，保留400 INVALID_INPUT契约。
+        if (err.message === 'BODY_TOO_LARGE') throw err;
+        return json(response, 400, { error: { code: 'INVALID_INPUT', message: 'Agent 请求处理失败' } });
       }
     }
 

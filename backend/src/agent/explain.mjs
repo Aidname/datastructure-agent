@@ -25,10 +25,10 @@ function loadCards() {
 
 function pickCardId(ev) {
   if (ev === 'probe') return 'bs-k03';
-  if (ev === 'move-left') return 'bs-k02';
-  if (ev === 'move-right') return 'bs-k02';
-  if (ev === 'found') return 'bs-k04';
-  if (ev === 'not-found') return 'bs-k05';
+  if (ev === 'move-left') return 'bs-k04';
+  if (ev === 'move-right') return 'bs-k05';
+  if (ev === 'found') return 'bs-k08';
+  if (ev === 'not-found') return 'bs-k06';
   return 'bs-k01';
 }
 
@@ -42,17 +42,17 @@ function cardText(card) {
 
 export async function handleAgentExplain(parsedBody) {
   try {
-    if (!parsedBody || typeof parsedBody !== 'object') {
+    if (!parsedBody || typeof parsedBody !== 'object' || Array.isArray(parsedBody)) {
       return { status: 400, body: { error: { code: 'INVALID_INPUT', message: '请求体必须为 JSON 对象' } } };
     }
 
     const { runId, stepIndex, question, hintLevel } = parsedBody;
 
-    if (!runId || typeof runId !== 'string') {
+    if (typeof runId !== 'string' || !runId.trim()) {
       return { status: 400, body: { error: { code: 'INVALID_INPUT', message: 'runId 为必填字符串' } } };
     }
 
-    if (hintLevel !== undefined && hintLevel !== null) {
+    if (hintLevel !== undefined) {
       if (!Number.isInteger(hintLevel) || hintLevel < 1 || hintLevel > 3) {
         return { status: 400, body: { error: { code: 'INVALID_INPUT', message: 'hintLevel 必须为 1、2 或 3' } } };
       }
@@ -61,16 +61,16 @@ export async function handleAgentExplain(parsedBody) {
     if (stepIndex === undefined || stepIndex === null) {
       return { status: 400, body: { error: { code: 'INVALID_INPUT', message: 'stepIndex 为必填' } } };
     }
-    const idx = Number(stepIndex);
-    if (!Number.isInteger(idx) || idx < 0) {
+    const idx = stepIndex;
+    if (!Number.isSafeInteger(idx) || idx < 0) {
       return { status: 400, body: { error: { code: 'INVALID_INPUT', message: 'stepIndex 必须为非负整数' } } };
     }
 
-    if (question !== undefined && question !== null && typeof question !== 'string') {
-      return { status: 400, body: { error: { code: 'INVALID_INPUT', message: 'question 必须为字符串' } } };
+    if (typeof question !== 'string' || !question.trim()) {
+      return { status: 400, body: { error: { code: 'INVALID_INPUT', message: 'question 必须为非空字符串' } } };
     }
 
-    const level = hintLevel || 1;
+    const level = hintLevel === undefined ? 1 : hintLevel;
 
     const run = getRun(runId);
     if (!run) {
@@ -118,7 +118,12 @@ export async function handleAgentExplain(parsedBody) {
       let next = '下一步继续二分查找流程。';
       if (arr.length === 0) next = '数组为空，查找直接结束（not-found）。';
       else if (ev === 'init') next = '初始化完成，下一步将计算 mid 并与目标比较。';
-      else if (ev === 'probe') next = '正在比较目标与 A[mid]，下一步根据比较结果更新边界。';
+      else if (ev === 'probe') {
+        const value = arr[mid];
+        next = value === target ? '下一步：命中（found），返回当前中点下标。'
+          : value < target ? '下一步：更新左边界（left=mid+1）。'
+            : '下一步：更新右边界（right=mid-1）。';
+      }
       else if (ev === 'move-left') next = '已更新左边界，下一步重新计算 mid。';
       else if (ev === 'move-right') next = '已更新右边界，下一步重新计算 mid。';
       else if (ev === 'found') next = '已找到目标，查找成功结束。';
@@ -130,7 +135,8 @@ export async function handleAgentExplain(parsedBody) {
     }
 
     const cardId = pickCardId(ev);
-    const card = loadCards()[cardId];
+    const candidate = loadCards()[cardId];
+    const card = candidate?.verified === true ? candidate : null;
     answer += cardText(card);
 
     return {
@@ -152,7 +158,11 @@ export async function handleAgentExplain(parsedBody) {
           cardId: card.id || cardId,
           title: card.title || '',
           sourceId: card.sourceId || null,
-          sourceType: card.sourceType || null
+          sourceType: card.sourceType || null,
+          chapter: card.chapter ?? null,
+          pages: card.pages ?? null,
+          version: card.version,
+          verified: card.verified
         }] : [],
         usage: { model: 'mock', cost: 0, mock: true }
       }

@@ -1,62 +1,28 @@
-# /api/agent/explain 接口文档
+# Agent Mock 接口接入说明
 
-## 请求
+权威字段与状态码见[API契约](../../../docs/architecture/api-contract.md)。本页提供当前开发模式的调用示例，不另立接口。
 
-POST /api/agent/explain
-Content-Type: application/json
-json
-{
-"runId": "string（必填）",
-"stepIndex": 0,
-"question": "string（可选）",
-"hintLevel": 1
-}
-## 响应
+默认 `POST /api/agent/explain` 返回503 MODEL_NOT_CONFIGURED。仅开发时在启动前显式开启：
 
-### 200 成功
-json
-{
-"runId": "string",
-"stepIndex": 0,
-"answer": "[Mock开发模式] 步骤提示内容...",
-"stepRefs": [{ "stepIndex": 0, "event": "probe", "left": 0, "right": 4, "mid": 2, "knowledgeCard": "bs-k03" }],
-"sourceRefs": [{ "cardId": "bs-k03", "title": "比较中间元素", "original": "..." }],
-"usage": { "model": "mock", "cost": 0, "mock": true }
-}
-### 400 非法输入
-json
-{
-"error": { "code": "INVALID_INPUT", "message": "具体原因" }
-}
-场景：缺 runId、hintLevel 非法（非1/2/3）、请求体非JSON、stepIndex越界、请求体超过10KB。
+```powershell
+$env:AGENT_MOCK='true'
+npm start
+```
 
-### 404 run不存在
-json
-{
-"error": { "code": "RUN_NOT_FOUND", "message": "run 不存在" }
-}
-### 400 步骤越界
-json
-{
-"error": { "code": "STEP_OUT_OF_RANGE", "message": "stepIndex 越界" }
-}
-### 400 请求体过大
-json
-{
-"error": { "code": "INVALID_INPUT", "message": "请求体超过 10KB 限制" }
-}
-### 503 未开启Mock
-json
-{
-"error": { "code": "MODEL_NOT_CONFIGURED", "message": "Agent 未启用，请设置 AGENT_MOCK=true" }
-}
-## 环境变量
+请求JSON为 `{runId,stepIndex,question,hintLevel}`。runId由运行接口创建；stepIndex必须为非负安全整数数字，question为非空字符串。hintLevel缺省为1，显式值只能是数字1、2、3；null、布尔值或数字字符串均非法。客户端stepState不作为权威依据。
 
-- `AGENT_MOCK=true`：启用本地 Mock Agent
-- 未设置时返回 503
+```json
+{"runId":"run_实际创建的编号","stepIndex":1,"question":"这一步为什么更新边界？","hintLevel":2}
+```
 
-## 说明
+成功200返回answer、stepRefs、sourceRefs、usage，另保留顶层runId/stepIndex。每级answer均以[Mock开发模式]开头，不调用模型。stepRefs含实际runId、stepIndex、event及left/right/mid；sourceRefs包含cardId、title、sourceId、sourceType、chapter、pages、version、verified，本批original的chapter/pages可为null。usage为 `{model:"mock",cost:0,mock:true}`。
 
-- 当前为 Mock 开发模式，不调用真实模型
-- 知识卡从 `content/knowledge/cards.json` 动态读取
-- hintLevel 1/2/3 递进提示深度
+- 非法请求/JSON/等级、非整数索引、空问题：400 INVALID_INPUT。
+- 不存在或过期run：404 RUN_NOT_FOUND。
+- 合法整数索引超出当前run：400 STEP_OUT_OF_RANGE。
+- 请求体超过10240 UTF-8字节：400 INVALID_INPUT，与运行/判分一致。
+- 未显式开启Mock：503 MODEL_NOT_CONFIGURED。
+
+事件卡片映射：init→bs-k01，probe→bs-k03，move-left→bs-k04，move-right→bs-k05，found→bs-k08，not-found→bs-k06。卡片取自06现有文件，仅引用verified=true内容；这不是按问题进行知识检索。
+
+在仓库根目录运行 `node --test tests/agent-explain.test.mjs` 核验请求、真实状态、边界、引用与默认降级。真实模型适配、检索工具、聊天前端和预算控制仍为后续任务。

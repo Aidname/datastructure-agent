@@ -108,7 +108,7 @@ scripts/               仓库静态检查
 .github/               PR 模板和任务 Issue 模板
 ```
 
-`shared/examples/` 是人工协议示例，`content/exercises/binary-search-oracle.json` 是人工预期，均不是真实引擎输出或模型效果证据。已登记8名成员，剩余名单、真实访谈和效果结果待补。本批内容经用户确认采用项目自编，不要求教材具体章节/页码，也不声称完成教材核验；来源决定见[范围记录](docs/product/scope.md)。
+`shared/examples/` 是人工协议示例，`content/exercises/binary-search-oracle.json` 是人工预期，均不是真实引擎输出或模型效果证据。已登记9名成员，剩余名单、真实访谈和效果结果待补。本批内容经用户确认采用项目自编，不要求教材具体章节/页码，也不声称完成教材核验；来源决定见[范围记录](docs/product/scope.md)。
 
 ## 材料入口
 

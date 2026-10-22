@@ -12,7 +12,7 @@
 | GET /api/runs/:runId/steps/:stepIndex | 200，返回 `{runId,step}` | 04 |
 | GET /api/exercises | 200，返回 `{exercises:[...]}`，当前10题 | 04+06 |
 | POST /api/exercises/check | 200，程序判分及固定提示 | 04+07 |
-| POST /api/agent/explain | 固定503 MODEL_NOT_CONFIGURED 占位；尚未接入模型或工具 | 05，04整合入口 |
+| POST /api/agent/explain | 默认503 MODEL_NOT_CONFIGURED；显式AGENT_MOCK=true时返回真实步骤驱动的开发模板及引用 | 05，04整合入口 |
 | GET /api/knowledge/cards | 501 NOT_IMPLEMENTED；尚未实现检索 | 05+06 |
 
 ## 运行与步骤
@@ -61,6 +61,12 @@ POST /api/exercises/check 输入示例：
 
 错误使用 `{error:{code,message}}`，知识接口的501还含 owner 占位字段。非法JSON及上述输入错误为400 INVALID_INPUT；未知 API 为404 NOT_FOUND；请求解析失败可为400 INVALID_REQUEST。
 
-Agent 后续计划输入 `{runId,stepIndex,question,hintLevel}`，输出 answer、stepRefs、sourceRefs、usage；应从服务端读取真实步骤，只引用已核验内容，如实记录真实模型用量。本批 original 来源允许 chapter/pages 为空。当前503仅为固定降级占位，没有实现 Agent 入参校验、状态工具、检索、provider、超时重试、预算控制或真实 usage。
+2026-10-22，PR #15的Mock阶段接口使用 `{runId,stepIndex,question,hintLevel}`：runId为非空字符串，stepIndex为非负安全整数数字，question为非空字符串；hintLevel仅缺省时为1，显式值须为数字1/2/3。客户端stepState不参与权威状态查询。
+
+默认返回503；仅显式设置AGENT_MOCK=true时，从04服务端记录读取实际步骤，按事件读取06的verified知识卡。成功200返回answer、stepRefs、sourceRefs、usage，另保留顶层runId/stepIndex。每级answer标注[Mock开发模式]；stepRefs含真实runId/stepIndex/event和变量；sourceRefs含cardId/title/sourceId/sourceType/chapter/pages/version/verified。本批original的chapter/pages可为null。usage固定 `{model:"mock",cost:0,mock:true}`，不是模型账单。
+
+非法参数、损坏JSON及超过10240字节为400 INVALID_INPUT；run不存在/过期为404 RUN_NOT_FOUND；步骤越界为400 STEP_OUT_OF_RANGE。运行/判分仍沿用原契约。调用示例见[Mock接入说明](../../frontend/src/api/README.md)，回归命令 `node --test tests/agent-explain.test.mjs`。
+
+当前只实现事件映射与本地模板，没有实现按问题检索、真实provider、聊天前端、模型超时重试、限流/预算控制或真实usage；这些仍是05后续交付。
 
 MODEL_TIMEOUT/504、MODEL_UNAVAILABLE/502、BUDGET_LIMIT/429 是后续计划，尚无对应实现；不得作为当前可用接口承诺。模型预算上限30元，当前没有付费调用。
