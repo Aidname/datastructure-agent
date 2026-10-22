@@ -1,11 +1,25 @@
 [
   {
-    "id": "wangdao-ds-2027",
-    "title": "王道数据结构考研复习指导",
-    "edition": "2027",
+    "id": "project-original-binary-search",
+    "title": "项目自编二分查找知识卡与过程练习",
+    "type": "original",
+    "edition": "1.0.0",
     "chapter": null,
     "pages": null,
-    "verified": false,
-    "note": "教材由用户选定；具体章节、页码和引用内容待成员06实际核验。"
+    "verified": true,
+    "locations": [
+      "content/REVIEW.md",
+      "content/sources/binary-search-contract.json",
+      "content/exercises/binary-search-oracle.json"
+    ],
+    "note": "按用户2026-10-15明确要求采用项目自编内容；不引用教材原文，不填写教材页码，不声称为教材原题。空chapter/pages对该来源合法。",
+    "verification": {
+      "status": "content-checked",
+      "reviewer": "Codex辅助规则核对与确定性脚本检查",
+      "reviewedAt": "2026-10-15",
+      "evidence": "content/VALIDATION.md；运行node content/validate.mjs可复查"
+    },
+    "textbookVerification": "not-required",
+    "peerReview": "not-claimed"
   }
 ]

@@ -1,32 +1,93 @@
-# API 契约 v1（设计，业务接口尚未实现）
+# API 契约 v1
 
-同源前后端；`Content-Type: application/json`。当前只有GET `/api/health`返回200；下面业务接口全部返回501。成员04/05实现后更新本页状态。
+更新：2026-10-22；算法接口基于PR #10，Agent基于已合并PR #18，本分支增加问题知识检索。同源前后端，请求使用 JSON 与 `Content-Type: application/json`。本页区分已实现行为与后续计划；消费者联调状态见[接口对齐清单](contract-alignment.md)。
 
-现有算法口径继续有效，但成功响应的完整结构、输入/保存限制、题目交互和模型错误细节尚未全部冻结。具体待确认项及负责人见 [接口对齐清单](contract-alignment.md)。本轮仅整理待确认项，没有变更业务接口或宣布跨模块确认完成。
+## 当前接口
 
-| 方法与路径 | 输入/用途 | 计划返回 | 主责 |
-|---|---|---|---|
-| POST /api/algorithms/binary-search/runs | `{array:[1,3,5,7,9],target:7}` | runId、algorithm、sourceVersion、sourceLines、steps、result | 04 |
-| GET /api/runs/:runId | 查服务端完整run | 同创建结果 | 04 |
-| GET /api/runs/:runId/steps/:stepIndex | 查某个真实step | `{runId,step}` | 04 |
-| POST /api/agent/explain | `{runId,stepIndex,question,hintLevel}` | answer、stepRefs、sourceRefs、usage | 05 |
-| GET /api/knowledge/cards?topicId=binary-search | 已核验知识卡 | `{cards:[...]}` | 05+06 |
-| GET /api/exercises?topicId=binary-search | 题目与选项，不提前返回答案 | `{exercises:[...]}` | 04+06 |
-| POST /api/exercises/check | `{exerciseId,answer,hintLevel}` | correct、hint、必要时explanation | 04+07 |
+| 方法与路径 | 当前行为 | 主责 |
+|---|---|---|
+| GET /api/health | 200；ok=true、stage=scaffold、implemented 包含 static-page/health/runs/exercises/agent/knowledge；mode 为 disabled/mock/deepseek，modelCallsEnabled 按实际模式返回 | 04 |
+| POST /api/algorithms/binary-search/runs | 200，创建并返回完整 run | 04 |
+| GET /api/runs/:runId | 200，返回同一完整 run | 04 |
+| GET /api/runs/:runId/steps/:stepIndex | 200，返回 `{runId,step}` | 04 |
+| GET /api/exercises | 200，返回 `{exercises:[...]}`，当前10题 | 04+06 |
+| POST /api/exercises/check | 200，程序判分及固定提示 | 04+07 |
+| POST /api/agent/explain | 无Key且未开Mock时503；显式AGENT_MOCK=true优先；否则有Key调用DeepSeek，返回步骤/资料引用 | 05，04整合入口 |
+| GET /api/agent/usage?sessionId=... | 200，当前来源/会话的请求数、失败数、耗时及已知用量；未知值null | 05 |
+| GET /api/knowledge/cards | 200，verified卡片目录或按q检索；无Key也可使用 | 05+06 |
 
-## 字段口径
+## 运行与步骤
 
-- 下标从0开始。重复值命中时返回一个实际匹配下标；未找到为-1。
-- runId由后端生成，stepIndex是数组位置，不由模型猜。
-- sourceLines为`[{lineId,text}]`，lineId与实际step对应。
-- Agent hintLevel为1/2/3，question不能为空。客户端不传一份可被篡改的权威variables作为工具结果。
-- sourceRefs至少包含cardId、sourceId、chapter、pages；引用只能来自已核验卡片。
-- usage记录真实provider返回信息；没有token数据时注明unknown，不编造。价格、汇率与账单记录另作核验。
+创建输入：`{"array":[1,3,5,7,9],"target":7}`。
 
-## 计划错误
+- array 为非递减安全整数数组，最多100项；target 为安全整数。不接受数字字符串、小数或不安全整数。允许空数组、负数、重复值；不自动排序或去重。
+- 创建与判分的请求体最多10240字节，按 UTF-8 字节计；超过限制当前返回400 INVALID_INPUT。
+- 创建成功为200，完整对象字段如下。输入固定，改输入需创建新 run。
 
-统一形状`{error:{code,message}}`：INVALID_INPUT/400、RUN_NOT_FOUND/404、STEP_OUT_OF_RANGE/400、MODEL_NOT_CONFIGURED/503、MODEL_TIMEOUT/504、MODEL_UNAVAILABLE/502、BUDGET_LIMIT/429。骨架NOT_IMPLEMENTED/501不能当模型失败反馈。
+| 字段 | 当前格式 |
+|---|---|
+| runId | 服务端生成的字符串 |
+| createdAt | Date.now()，毫秒时间戳数字 |
+| algorithm | binary-search |
+| sourceVersion | c-v1 |
+| sourceLines | `[{lineId,text}]`，当前13行 C/C++ 风格展示片段 |
+| steps | 完整步骤数组；schemaVersion=1.0，格式见[状态契约](trace-contract.md) |
+| result | 匹配下标或-1，与最终步骤一致 |
 
-输入建议限制为安全整数、小规模数组。具体长度与请求大小在04实现时冻结到本页；前后端一致。数组无序应提示修改，不偷偷排序改变学生输入。
+闭区间、零下标、mid 向下取整；重复值返回实际命中的任一下标，不承诺首个或末个。run 存在服务进程内存 Map 中，保留1小时，每60秒清理；查询过期 run 也会删除。重启丢失，没有持久化或容量上限策略。输入数组位于每个 step 的 array 中，顶层没有单独 array/target 字段。
 
-题目评分由程序执行。固定提示由06整理，模型不可用时题目仍可完成。是否显示完整解析由提示等级及作答结果决定。
+stepIndex 使用十进制非负整数字符串；超出已存在 run 的步骤范围返回400 STEP_OUT_OF_RANGE。负数、小数和非数字路径不匹配当前路由，返回404 NOT_FOUND。不存在或已过期的 run 返回404 RUN_NOT_FOUND。
+
+## 题目与判分
+
+GET /api/exercises 当前读取 `content/exercises/binary-search.json`。公开字段只有 id、version、topicId、type、prompt、context、options；不返回 answer、hints 或 explanation。当前数据均为本批已检查题目，但路由没有实现 verified/草稿过滤。可附 `?topicId=binary-search`，当前代码忽略查询参数，不支持按主题筛选。
+
+context 是题目场景，不是实时 run 的 step：可能含 before-probe，sourceVersion 可为 null，以 algorithmContractId=binary-search-content-v1 标识内容口径；不要强行当成引擎事件或实时状态。
+
+POST /api/exercises/check 输入示例：
+
+```json
+{"exerciseId":"bs-q02","answer":"A","hintLevel":1}
+```
+
+- value：answer 必须为安全整数数字；choice：必须为 options 中的精确选项 ID 字符串；judgement：必须为布尔值。
+- hintLevel 缺省为数字1，只接受数字1、2、3，不接受字符串。
+- 正确：`{"correct":true}`，包括第三级也不额外返回解析。
+- 错误，一级/二级：`{"correct":false,"hint":"对应固定提示"}`。
+- 错误，第三级：`{"correct":false,"correctAnswer":"B","explanation":"对应解析"}`；correctAnswer 类型随题型变化，此时无 hint 字段。
+- 类型/提示级别/选项非法为400 INVALID_INPUT；题目不存在为404 NOT_FOUND。评分由程序执行，不调用模型，也不保存作答记录。
+- 公开 version 已提供；判分请求当前不校验 exerciseVersion。07保存记录时应保留所见题目版本，旧版本判分策略仍需联调。
+
+## 错误与未实现部分
+
+错误使用 `{error:{code,message}}`。非法JSON及上述输入错误为400 INVALID_INPUT；未知 API 为404 NOT_FOUND；请求解析失败可为400 INVALID_REQUEST。
+
+## Agent 与聊天（2026-10-22，PR #18修复版）
+
+请求为 `{runId,stepIndex,question,hintLevel,sessionId?}`。runId是非空字符串；stepIndex是非负安全整数数字，禁止类型转换；question是1至2000字符的非空字符串；hintLevel仅缺省时为1，显式仅接受数字1/2/3。客户端stepState不影响真实状态。sessionId仅用于用量展示，不是鉴权或限流身份。
+
+模式按以下优先级选择：显式AGENT_MOCK=true返回开发模板且不调用模型；否则配置DEEPSEEK_API_KEY时调用真实模型；其余情况503 MODEL_NOT_CONFIGURED。health中的mode和modelCallsEnabled与实际模式一致。
+
+成功200返回runId、stepIndex、hintLevel、answer、stepRefs、sourceRefs、knowledgeUsed、retrieval、usage。状态来自04记录；按学生问题检索最多2张06的verified知识卡，再补充当前事件上下文卡，去重后最多3张放入prompt。stepRefs含原运行、步骤、事件、变量；sourceRefs含cardId/title/sourceId/sourceType/chapter/pages/version/verified。本批original的chapter/pages可为null。显式Mock正常步骤解释带[Mock开发模式]，usage为 `{model:"mock",cost:0,mock:true}`；无关问题/信息不足的本地固定回复另有irrelevant/infoInsufficient标记。
+
+真实usage包含model、mock=false、tokens、elapsedMs、cost、costCurrency=CNY及costBasis。tokens有promptTokens/completionTokens/totalTokens；上游缺失或不合法时为null。单价不内置，需依据实际账户/model配置MODEL_INPUT_CNY_PER_MILLION和MODEL_OUTPUT_CNY_PER_MILLION；未配置时cost=null。金额仅为配置估算，非账单。
+
+GET /api/agent/usage?sessionId=... 返回当前socket来源+session、服务启动以来且北京时间当日的requests/failures/elapsedMs/tokensUsed/costUsed/unknownCalls。token未知与费用未知分别标null，不能转换成0。该展示统计重启清零；预算预留账本独立持久保存。
+
+错误：400 INVALID_INPUT（含非法JSON、超过10240字节）、404 RUN_NOT_FOUND、400 STEP_OUT_OF_RANGE、429 RATE_LIMIT_EXCEEDED、429 TOKEN_LIMIT_EXCEEDED、429 BUDGET_EXCEEDED、503 BUDGET_UNAVAILABLE、502 MODEL_CALL_FAILED、504 MODEL_TIMEOUT。超时覆盖响应头与正文，错误不回显上游诊断正文，不假称自动Mock降级；算法、动画和判分仍可独立使用。
+
+限流默认开启，按socket peer来源聚合；忽略session、User-Agent、x-forwarded-for。反向代理部署需另明确可信来源策略。预算调用前同步预留，避免并发重复分配；本地单进程持久账本位于已忽略的data/private/agent-budget.json，保留失败、未知用量及中断调用的预留。默认测试累计30元、每日5元；这是估算额度控制，实际账单仍以服务商为准，多实例需事务共享存储。配置见[Agent说明](../../backend/src/agent/README.md)。
+
+按问题检索已接入，详见下节；正式工作台装配与真实模型效果验收仍待完成。聊天独立页支持URL传runId/stepIndex，失败重试保存原请求快照。02负责工作台装配，05配合；真实案例由05提供调用记录并配合08评测。
+
+回归：`node --test tests/knowledge-retrieval.test.mjs tests/agent-explain.test.mjs tests/agent-provider.test.mjs tests/agent-real-mode.test.mjs`。测试使用本地桩，不是实际模型效果证据。
+
+## 已核验知识查询与问题检索
+
+GET /api/knowledge/cards?topicId=binary-search&q=问题&limit=3：topicId缺省binary-search；q可省略，省略时列目录（默认10张），存在时须为1至2000字符非空值（默认3张）；limit是1至10的十进制整数。只返回同主题verified=true且具备有效出处/版本的卡片。未知主题/无匹配200空数组；非法参数400 INVALID_INPUT；资料读取失败503 KNOWLEDGE_UNAVAILABLE。
+
+返回 `{topicId,query,cards,sourceRefs,retrieval}`。cards含id/topicId/title/content/keywords及出处版本字段；不返回内部review记录。retrieval.method=keyword-v1，status为catalog/matched/no-match；matches含cardId/score/matchedTerms，score是排序权重，不是模型置信度。
+
+Agent检索字段另含matchedCardIds与contextCardId。问题匹配优先于事件；“解释这一步”等问题用事件卡并标step-context。无匹配返回资料不足、空sourceRefs、knowledgeUsed=false、usage.insufficientKnowledge=true，不调用模型；明显无关问题标irrelevant。stepRefs.knowledgeCard仅指实际提供的事件上下文卡（可null），所有提供给模型的卡片列在sourceRefs中，不能将这些引用解释成每句话都已事实核验。
+
+本批只覆盖现有10张自编二分查找卡，不使用向量数据库，无额外依赖；排序细节及限制见[知识检索说明](../../backend/src/knowledge/README.md)。

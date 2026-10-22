@@ -2,7 +2,7 @@
 
 **看懂每一步：数据结构与算法可视化学习助手。**
 
-当前提交是十人协作的目录、接口和任务骨架。只有本地静态页面及健康检查可运行；算法执行、动画、练习、检索和模型调用尚未实现。业务接口返回 `501 NOT_IMPLEMENTED`，不产生模型费用。
+截至2026-10-20，main `cc8d171` 已合并成员04的[PR #10](https://github.com/tw1l1ghtcc/datastructure-agent/pull/10)：确定性二分查找、源码行映射、完整运行/单步查询、题库与程序判分接口可用。成员06已提供10张自编知识卡、10题及固定提示、11组人工预期。后端独立核验26/26通过。成员09的[PR #12](https://github.com/tw1l1ghtcc/datastructure-agent/pull/12)已合并需求v0.9、五页可点击原型、项目标志、思维导图/领域模型和40项覆盖规划；原型独立预览，生产工作台、动画、Agent/检索、本机记录及完整流程仍待接入，当时尚未接入模型。当前分支的05实现见下方说明。详见[任务看板](docs/team/progress.md)及[后端核验记录](docs/architecture/backend-check-20261019.md)。
 
 ## 从哪里开始
 
@@ -39,7 +39,7 @@ Copy-Item .env.example .env
 npm start
 ```
 
-本次不需要模型密钥就能启动骨架。不要把 `.env` 提交到仓库。
+启动及算法/判分接口不需要模型密钥。示例配置默认 AGENT_MOCK=true，优先使用免费开发模板；关闭Mock且配置DEEPSEEK_API_KEY后才调用真实API。不要把 `.env` 提交到仓库。模型配置、聊天页、限流与预算说明见[Agent说明](backend/src/agent/README.md)。
 
 启动后，另开一个 PowerShell 窗口检查服务：
 
@@ -47,9 +47,30 @@ npm start
 Invoke-RestMethod http://127.0.0.1:3000/api/health
 ```
 
-当前预期为 `ok=true`、`stage=scaffold`、`modelCallsEnabled=false`。浏览器应能看到各成员区域的占位说明；业务接口仍返回 501。检查结束后在运行 `npm start` 的窗口按 Ctrl+C 停止服务。模型配置项只是预留，当前代码没有读取它们发起模型调用。
+当前预期为 `ok=true`、`stage=scaffold`、`implemented` 包含 `static-page/health/runs/exercises/agent/knowledge`。mode为disabled/mock/deepseek，modelCallsEnabled只在真实模式为true。正式工作台仍待整合，独立聊天页可用；知识接口已支持按问题查询verified知识卡，见[检索说明](backend/src/knowledge/README.md)。检查结束后在运行 `npm start` 的窗口按 Ctrl+C 停止服务。
+
+可在服务运行时验证完整轨迹：
+
+```powershell
+$run = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3000/api/algorithms/binary-search/runs -ContentType 'application/json' -Body '{"array":[1,3,5,7,9],"target":7}'
+$run.steps | Format-Table stepIndex,event,lineId,done,result
+Invoke-RestMethod "http://127.0.0.1:3000/api/runs/$($run.runId)/steps/0"
+Invoke-RestMethod http://127.0.0.1:3000/api/exercises
+```
+
+标准案例为5步、result=3；详细输入上限、返回字段及提示响应见[API契约](docs/architecture/api-contract.md)。
 
 2026-10-14 的本地核验通过静态检查、页面及健康接口检查，详见 [接手核验记录](docs/architecture/takeover-check.md)。这次启动核验由 Codex 在本地副本完成；另一位队员从干净副本启动的验收仍待进行。
+
+## 09原型预览
+
+在仓库根目录另开PowerShell窗口执行：
+
+```powershell
+node docs/prototype/preview.mjs
+```
+
+访问 <http://127.0.0.1:3099/docs/prototype/index.html>，可浏览目录、工作台、知识/辅导、练习和记录五页。运行方法、截图和标志见[原型说明](docs/prototype/README.md)。这是设计原型：使用本地引擎、模拟run标识及独立记录空间，不是生产API联调结果；生产服务仍使用 `npm start`。按Ctrl+C停止预览。
 
 ## 本次第一次作业
 
@@ -78,7 +99,8 @@ content/               知识卡、题目、出处、覆盖表
 tests/                 后续测试与验收证据目录
 docs/team/             十人分工、登记、个人任务单
 docs/architecture/     模块边界、接口、状态约定
-docs/product/          范围、需求文档初始模板
+docs/product/          范围、需求v0.9、覆盖规划与设计核验
+docs/prototype/        五页交互原型、截图与项目标志
 docs/research/         访谈与试用模板
 docs/evaluation/       三案例对比方案和结果模板
 docs/presentation/     PPT、演示脚本和团队博客模板
@@ -86,14 +108,16 @@ scripts/               仓库静态检查
 .github/               PR 模板和任务 Issue 模板
 ```
 
-`shared/examples/` 是人工编写的协议示例，不是算法输出或已完成的效果实验。访谈、效果结果、教材页码和成员信息均待真实补充。
+`shared/examples/` 是人工协议示例，`content/exercises/binary-search-oracle.json` 是人工预期，均不是真实引擎输出或模型效果证据。已登记9名成员，剩余名单、真实访谈和效果结果待补。本批内容经用户确认采用项目自编，不要求教材具体章节/页码，也不声称完成教材核验；来源决定见[范围记录](docs/product/scope.md)。
 
 ## 材料入口
 
 - [接口对齐清单](docs/architecture/contract-alignment.md)：负责人、待确认事项和确认依据。
 - [集成与验收清单](docs/team/integration-checklist.md)：17日、19日联调及22日冻结检查。
 - [日程](docs/team/schedule.md)：10月22日完成，23日至24日答辩前修复、复测与演练。
-- [需求文档模板](docs/product/requirements.md)：成员09完善。
+- [需求分析v0.9](docs/product/requirements.md)：09已交可审阅版，真实调研、课程规范及跨成员确认仍待补。
+- [原型、截图与标志](docs/prototype/README.md)、[思维导图与领域模型](docs/architecture/diagrams/README.md)：09设计成果，10可引用并保留设计标签。
+- [覆盖规划](docs/product/coverage-plan.md)：40项逐项规划，待06/相关成员复核，不代表全部内容或动画已完成。
 - [访谈与试用](docs/research/README.md)：成员07组织。
 - [测试与效果对比](docs/evaluation/README.md)：成员08核验。
 - [PPT、博客与演示](docs/presentation/README.md)：成员10汇总。

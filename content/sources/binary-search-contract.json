@@ -1,0 +1,22 @@
+{
+  "id": "binary-search-content-v1",
+  "contentVersion": "1.0.0",
+  "algorithm": "binary-search",
+  "arrayOrder": "nondecreasing",
+  "safeIntegers": true,
+  "indexBase": 0,
+  "interval": "closed",
+  "initialLeft": 0,
+  "initialRight": "array.length - 1",
+  "loopCondition": "left <= right",
+  "midRule": "left + floor((right-left)/2)",
+  "onLess": "left = mid + 1",
+  "onGreater": "right = mid - 1",
+  "onEqual": "return mid immediately",
+  "notFoundResult": -1,
+  "midAfterInitOrUpdate": null,
+  "duplicatePolicy": "return first equal probe; no leftmost/rightmost guarantee",
+  "sourceVersion": null,
+  "integrationStatus": "not-run",
+  "note": "本文件固定内容题设，不是成员04实际源码，也不冒充真实引擎sourceVersion。题目是固定情境，可直接按answer确定判分。"
+}

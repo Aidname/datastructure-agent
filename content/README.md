@@ -1,11 +1,32 @@
-# 内容数据规范（成员 06 主责）
+# 成员06：可接入的二分查找内容
 
-当前题库和知识卡为空，不能据此声称检索或教学内容已经完成。
+版本：1.0.0；日期：2026-10-15。
 
-知识卡字段：`id, topicId, title, content, keywords, sourceId, chapter, pages, verified`。只让 `verified=true` 且出处已核验的知识卡进入正式 Agent 检索。未提供原文时不猜页码。
+本批交付10张知识卡、10道自编过程题、每题答案/解析/三级提示、11组人工预期、1条自编来源登记，以及候选覆盖目录。全部卡题verified=true，可供消费模块读取。没有实现04的后端路由、05的Agent检索或07的练习页面。
 
-题目字段：`id, topicId, type, prompt, context, options, answer, explanation, hints, sourceRefs, verified`。`type` 首版为 choice/judgement/value；hints 最多三级。程序评分依据 answer，不交给模型自行决定。展示题目接口不得提前返回答案。
+2026-10-15，成员01/所有者明确确认本批可以采用项目自编内容，不要求查找教材具体章节或页码；不是确认教材已经核验。本版采用sourceType=original，chapter=null、pages=null合法。后续如实际引用教材，仍核验真实出处。具体决定见[范围记录](../docs/product/scope.md)。
 
-首版题目建议：中点计算、更新哪一边、找不到目标、重复值、空数组。排序范围和代码版本必须与题目一致。
+## 字段与用途
 
-知识来源以团队手头《王道数据结构 2027》实际内容为准；保存团队整理的说明和定位信息，不把整本扫描件放进公开仓库。
+- knowledge/cards.json：沿用id/topicId/title/content/keywords/sourceId/chapter/pages/verified，附加version、sourceType、review。
+- exercises/binary-search.json：沿用id/topicId/type/prompt/context/options/answer/explanation/hints/sourceRefs/verified，附加version、sourceType、review。
+- sources/manifest.json：项目自编来源，verified表示内容检查通过，不表示教材或同伴审核通过。
+- sources/binary-search-contract.json：闭区间、零下标、向下取整、首次相等返回等内容题设。
+- exercises/binary-search-oracle.json：11组人工推演预期，供08复核，不是线上引擎输出。
+- REVIEW.md：可直接阅读的知识卡、题目和提示。
+- review/assignment-check.md：本次图片/TXT与交付的逐项核对。
+- exercises/HANDOFF.md：04/05/07/08接入说明与检索测试词。
+- VALIDATION.md：实际检查记录；validate.mjs是离线检查脚本。
+
+## 可用性口径
+
+只发布本条verified=true且其source/关联卡verified=true的数据。original来源不要求教材页码。context.sourceVersion=null表示尚未绑定04实际运行版本，不能展示成真实运行引用；固定情境练习仍可确定判分。context.algorithmContractId固定题设，不能拿它冒充引擎sourceVersion。
+
+sourceVersion和真实接口联调由04/相关成员接入时补齐，不再阻止本批卡题读取。实际软件上线和完整交互验收仍归相应成员完成。
+
+运行：
+
+```powershell
+npm run check
+node content/validate.mjs
+```

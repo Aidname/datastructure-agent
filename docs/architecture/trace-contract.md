@@ -1,28 +1,46 @@
 # 二分查找执行状态 v1
 
-本页是待实现模块的共同规范。`shared/examples/step.example.json`只是人工协议示例，不是引擎运行结果。
+更新：2026-10-19；main `d1ce117` 已合并04的引擎。实现位于 [binarySearch.js](../../shared/algorithms/binarySearch.js)，导出 generateSteps、SOURCE_VERSION、SOURCE_LINES。HTTP入口负责输入校验；直接调用纯引擎前需满足[API输入条件](api-contract.md)。
 
-现有事件与字段保持不变；C/C++展示源码和正式行映射待04提供，再由相关成员核对。Schema目前约束字段类型、枚举及部分范围，没有完整验证安全整数、有序性、索引关系或事件与结果的对应关系；`npm run check`也不执行Schema验证。待确认及核验责任见 [接口对齐清单](contract-alignment.md)。
+## 算法及版本
 
-## 算法约定
+采用闭区间[left,right]，零下标，mid向下取整。重复值命中返回任一实际匹配下标，未找到为-1。初始化left=0、right=array.length-1、mid=null；空数组产生初始化与not-found两步，不访问元素。
 
-首版采用闭区间[left,right]，零起始下标，mid向下取整。找到返回匹配位置；未找到返回-1。允许重复值，不承诺返回第一个或最后一个。
+schemaVersion 固定为 `1.0`，sourceVersion 当前为 `c-v1`。每步字段：schemaVersion、algorithm、stepIndex、event、sourceVersion、lineId、array、target、variables、done、result。variables 含 left/right/mid；步骤数组从0连续编号，array 和 variables 为独立快照。
 
-初始化left=0，right=array.length-1，mid=null；空数组right=-1，产生初始化及未找到结束步骤。区间为空不能访问数组。
+probe 显示当前比较位置；边界更新后 mid=null；not-found 结束时 mid=null。仅 found/not-found 的 done=true，result 分别为命中下标/-1；其他步骤 result=null。
 
-## 每一步
+## 当前源码映射
 
-格式见`shared/schemas/step.schema.json`。固定字段：schemaVersion、algorithm、stepIndex、event、sourceVersion、lineId、array、target、variables、done、result。
+API 的 sourceLines 是当前引擎导出的13行展示片段，不是完整可独立编译的 C 程序。以下为实际稳定映射；事件名称与 lineId 不必相同。
 
-- event：init、probe、move-left、move-right、found、not-found。
-- probe：展示本轮比较时的left/right/mid。
-- move-left：更新左边界后的快照；move-right：更新右边界后的快照。更新后mid置null，下一probe再计算，避免过期指针被解释成新状态。
-- found/not-found：done=true，result为匹配下标或-1。未结束result=null。
-- 每一步必须独立快照，后续修改不能改变历史步骤。
-- lineId使用稳定标识（如init、probe、update-left），不是随排版变化的行号。展示代码映射由04提供。
+| event | lineId | 展示语句 |
+|---|---|---|
+| init | init-left | int left = 0; |
+| probe | calc-mid | int mid = left + (right - left) / 2; |
+| move-left | update-left | left = mid + 1; |
+| move-right | update-right | right = mid - 1; |
+| found | found | return mid; |
+| not-found | not-found | return -1; |
 
-03播放任意step时，02、05、07收到同一个runId/stepIndex。回看恢复旧状态，不重新生成轨迹。Agent答案应标明针对哪个step，切换步骤不改写已经回答的引用。
+其余源码行标识为 init-right、loop-check、probe-match、probe-less、probe-greater、loop-end、loop-end-2；消费者使用 API 的 sourceLines 渲染，避免自行维护第二份代码。
 
-## 联调顺序
+## 标准轨迹
 
-01/04先锁定sourceVersion与行映射；02/03用协议样例做布局；04输出标准案例完整轨迹；08独立核验；最后05接入状态工具。Agent解释不能替代轨迹正确性验证。
+输入 `[1,3,5,7,9]`，target=7；当前引擎输出5步，result=3：
+
+| stepIndex | event | left | right | mid | lineId | done | result |
+|---|---|---|---|---|---|---|---|
+| 0 | init | 0 | 4 | null | init-left | false | null |
+| 1 | probe | 0 | 4 | 2 | calc-mid | false | null |
+| 2 | move-left | 3 | 4 | null | update-left | false | null |
+| 3 | probe | 3 | 4 | 3 | calc-mid | false | null |
+| 4 | found | 3 | 4 | 3 | found | true | 3 |
+
+[单步人工样例](../../shared/examples/step.example.json)现与标准轨迹第0步一致；样例文件本身仍不是运行证据。[后端核验记录](backend-check-20261019.md)记录独立检查范围；08交叉验收与消费者联调仍待完成。
+
+## 消费者联调边界
+
+03播放任意step时，02/05/07应共享同一runId/stepIndex；回看读取已有步骤，不重新生成轨迹。Agent引用应固定到被问步骤，切换步骤不改写历史引用。前端挂载、通知、重置和销毁接口仍需02/03协同确认。
+
+现有 Schema 约束字段类型、枚举及部分范围；安全整数、有序性、索引关系、事件/result一致性和快照独立性需业务验证。npm run check 不执行 Schema 或算法正确性验证。已实现行为与待确认事项见[接口对齐清单](contract-alignment.md)。

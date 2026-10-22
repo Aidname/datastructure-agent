@@ -1,0 +1,115 @@
+{
+  "reviewedHead": "19a5576657db52826bb6e9de55dd6e5b80eba1b2",
+  "total": 26,
+  "passed": 26,
+  "failed": 0,
+  "results": [
+    {
+      "name": "11组人工预期、逐步Schema字段及行映射",
+      "passed": true,
+      "detail": "11组通过；Schema检查覆盖当前文件的类型/常量/枚举/必填/范围/额外字段规则"
+    },
+    {
+      "name": "882组有序数组的结果和全轨迹不变量",
+      "passed": true,
+      "detail": 882
+    },
+    {
+      "name": "安全整数端点、两元素和100元素",
+      "passed": true
+    },
+    {
+      "name": "确定性与输入/快照引用隔离",
+      "passed": true
+    },
+    {
+      "name": "展示C代码括号、更新语句及lineId唯一性",
+      "passed": true
+    },
+    {
+      "name": "主页/脚本/样式及HEAD仍可访问",
+      "passed": true
+    },
+    {
+      "name": "health公布runs/exercises且无模型调用",
+      "passed": true
+    },
+    {
+      "name": "11组HTTP创建和回读与引擎一致",
+      "passed": true
+    },
+    {
+      "name": "运行查询不存在/越界与两个run互不污染",
+      "passed": true
+    },
+    {
+      "name": "16类运行非法输入及无序/长度上限",
+      "passed": true,
+      "detail": 16
+    },
+    {
+      "name": "损坏JSON不导致进程退出",
+      "passed": true
+    },
+    {
+      "name": "ASCII请求超过声明10KB限制被拒绝",
+      "passed": true
+    },
+    {
+      "name": "UTF-8请求超过声明10KB限制被拒绝",
+      "passed": true
+    },
+    {
+      "name": "题目ID/题面/题型/选项与06一致且不泄露答案",
+      "passed": true
+    },
+    {
+      "name": "公开题目保留题库版本以保存学习记录",
+      "passed": true
+    },
+    {
+      "name": "全部10题正确答案确定判分",
+      "passed": true
+    },
+    {
+      "name": "全部10题错误答案的第1级提示/解析",
+      "passed": true
+    },
+    {
+      "name": "全部10题错误答案的第2级提示/解析",
+      "passed": true
+    },
+    {
+      "name": "全部10题错误答案的第3级提示/解析",
+      "passed": true
+    },
+    {
+      "name": "值/判断/选择题拒绝错误答案类型",
+      "passed": true
+    },
+    {
+      "name": "选择题拒绝不存在的选项ID与空答案",
+      "passed": true
+    },
+    {
+      "name": "提示等级仅允许1/2/3",
+      "passed": true
+    },
+    {
+      "name": "判分请求也有体积上限",
+      "passed": true
+    },
+    {
+      "name": "模型降级、未实现知识接口与未知API",
+      "passed": true
+    },
+    {
+      "name": "run查询TTL及每分钟后台清理逻辑",
+      "passed": true
+    },
+    {
+      "name": "执行已有SIGTERM关闭处理后进程自然退出",
+      "passed": true
+    }
+  ]
+}
