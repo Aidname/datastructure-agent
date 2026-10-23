@@ -69,7 +69,7 @@ export function createWorkbenchUI({ onNavigate = () => {} } = {}) {
       if (error.name !== 'AbortError') { $('knowledge-status').textContent = `读取失败：${error.message}`; $('knowledge-retry').hidden = false; }
     } finally { cardsBusy = false; }
   }
-  const pages = { workbench: '算法工作台', knowledge: '知识与辅导', practice: '过程练习', records: '错题与记录' };
+  const pages = { catalog: '课程目录', workbench: '算法工作台', knowledge: '知识与辅导', practice: '过程练习', records: '错题与记录' };
   let currentPage = null;
   function route() {
     const hash = location.hash.slice(1);
