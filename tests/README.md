@@ -41,7 +41,10 @@ node tests/agent-conversation.browser.mjs
 node tests/exercises.browser.mjs
 node tests/visualization-window.browser.mjs
 node tests/workbench-layout.browser.mjs
+node tests/learning-pages.browser.mjs
 ```
+
+分页面检查覆盖四页独立显示、知识卡按需读取/失败重试、题目判分与记录共享、重练跳转、前进后退/刷新、运行和聊天保留、离页暂停及390/320px适配。
 
 布局检查覆盖侧栏、330px源码/四变量、白底、自适应同排时间轴、浮窗保留草稿/回答/步骤归属、知识卡及320px适配。恢复窗口检查覆盖真实run、时间轴/源码及05/07同步、平移缩放、窗口拖动/全屏/销毁、100项取景与手机布局；截图输出包括工作区、全屏和手机视口。
 

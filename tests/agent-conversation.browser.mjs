@@ -11,7 +11,7 @@ try{
  const page=await browser.newPage({viewport:{width:1440,height:1050}}),errors=[],requests=[],responses=[];
  page.on('pageerror',e=>errors.push(e.message));
  page.on('request',r=>{if(r.url().endsWith('/api/agent/explain'))requests.push(r.postDataJSON());});
- await page.goto(base);await page.click('#fillDemo');await page.click('#startBtn');await page.waitForFunction(()=>document.querySelector('#stepText').textContent.includes('第 1 步'));
+ await page.goto(base);await page.click('#fillDemo');if(await page.locator('#tutor-window').isVisible())await page.click('#tutor-close');await page.click('#startBtn');await page.waitForFunction(()=>document.querySelector('#stepText').textContent.includes('第 1 步'));
  await page.click('#tutor-toggle');
  await page.click('#nextBtn');await page.click('#nextBtn');
  await page.fill('#question-input','为什么是到7不是到5');
@@ -20,7 +20,7 @@ try{
  await page.waitForFunction(()=>!document.querySelector('#send-btn').disabled);
  assert.equal(grounded.retrieval.status,'disabled');assert.deepEqual(grounded.sourceRefs,[]);
  assert.ok(!grounded.answer.includes('没有找到'));await page.click('#resetBtn');
- const ask=async question=>{await page.fill('#question-input',question);const waiting=page.waitForResponse(r=>r.url().endsWith('/api/agent/explain'));await page.click('#send-btn');responses.push(await(await waiting).json());await page.waitForFunction(()=>!document.querySelector('#send-btn').disabled);};
+ const ask=async question=>{if(!await page.locator('#tutor-window').isVisible())await page.click('#tutor-toggle');await page.fill('#question-input',question);const waiting=page.waitForResponse(r=>r.url().endsWith('/api/agent/explain'));await page.click('#send-btn');responses.push(await(await waiting).json());await page.waitForFunction(()=>!document.querySelector('#send-btn').disabled);};
  await ask('为什么必须有序？');const first=requests.at(-1);assert.ok(first.conversationId);assert.ok(first.turnId);
  await page.click('#nextBtn');await ask('能再讲详细一点吗？');
  assert.equal(requests.at(-1).conversationId,first.conversationId);assert.notEqual(requests.at(-1).turnId,first.turnId);assert.equal(requests.at(-1).stepIndex,1);
@@ -31,7 +31,7 @@ try{
  let firstFailure=true;await page.route('**/api/agent/explain',route=>{if(firstFailure){firstFailure=false;return route.fulfill({status:502,contentType:'application/json',body:JSON.stringify({error:{message:'测试失败'}})});}return route.continue();});
  await ask('为什么中点向下取整');const failure=requests.at(-1);await page.click('#retry-btn');await page.waitForFunction(()=>!document.querySelector('#send-btn').disabled);assert.deepEqual(requests.at(-1),failure);
  await page.unroute('**/api/agent/explain');
- const oldId=requests.at(-1).conversationId;await page.fill('#targetInput','9');await page.click('#startBtn');await page.waitForFunction(()=>document.querySelector('#stepText').textContent.includes('第 1 步'));await ask('能再讲详细一点吗？');
+ const oldId=requests.at(-1).conversationId;await page.fill('#targetInput','9');if(await page.locator('#tutor-window').isVisible())await page.click('#tutor-close');await page.click('#startBtn');await page.waitForFunction(()=>document.querySelector('#stepText').textContent.includes('第 1 步'));await ask('能再讲详细一点吗？');
  assert.notEqual(requests.at(-1).conversationId,oldId);assert.equal(responses.at(-1).retrieval.status,'disabled');
  // A late answer for the invalidated run cannot appear or seed the new conversation.
  let held;await page.route('**/api/agent/explain',route=>{held=route;});await page.fill('#question-input','为什么必须有序');await page.click('#send-btn');while(!held)await new Promise(r=>setTimeout(r,5));

@@ -1,7 +1,7 @@
 import { requestJSON } from '../../services/api.js';
 
 // Layout state never owns or changes the algorithm's playback cursor.
-export function createWorkbenchUI() {
+export function createWorkbenchUI({ onNavigate = () => {} } = {}) {
   const $ = id => document.getElementById(id);
   const lifetime = new AbortController();
   const listen = (node, type, fn) => node.addEventListener(type, fn, { signal: lifetime.signal });
@@ -54,43 +54,56 @@ export function createWorkbenchUI() {
       if (error.name !== 'AbortError') { $('knowledge-status').textContent = `读取失败：${error.message}`; $('knowledge-retry').hidden = false; }
     } finally { cardsBusy = false; }
   }
-  function setTab(tab) {
-    for (const name of ['chat', 'knowledge']) {
-      const active = name === tab;
-      $(`tutor-${name}-tab`).setAttribute('aria-selected', String(active));
-      $(`tutor-${name}-tab`).tabIndex = active ? 0 : -1;
-      $(`tutor-${name}-view`).hidden = !active;
-    }
-    if (tab === 'knowledge') loadCards();
+  const pages = { workbench: '算法工作台', knowledge: '知识与辅导', practice: '过程练习', records: '错题与记录' };
+  let currentPage = null;
+  function route() {
+    const hash = location.hash.slice(1);
+    return ({ 'exercise-panel': 'practice', 'records-mount': 'records', 'tutor-knowledge-view': 'knowledge' })[hash] || (Object.hasOwn(pages,hash) ? hash : 'workbench');
   }
+  function navigate(name, { replace = false } = {}) {
+    if (!Object.hasOwn(pages,name)) name = 'workbench';
+    if (location.hash !== '#'+name) history[replace ? 'replaceState' : 'pushState'](null,'','#'+name);
+    if (currentPage === name) return;
+    document.querySelector('.vizwin[data-full="true"] [data-viz-full]')?.click();
+    onNavigate(name);
+    if (open) show(false, false);
+    for (const view of document.querySelectorAll('[data-page-view]')) view.hidden = view.dataset.pageView !== name;
+    for (const link of document.querySelectorAll('.nav-item[data-page-link]')) {
+      const active = link.dataset.pageLink === name;
+      link.classList.toggle('active', active);
+      if (active) link.setAttribute('aria-current','page'); else link.removeAttribute('aria-current');
+    }
+    currentPage = name; document.body.dataset.page = name;
+    if (innerWidth <= 540) { document.body.dataset.sidebarCollapsed = 'true'; updateSidebar(); }
+    $('page-breadcrumb').textContent = pages[name]; document.title = pages[name] + ' · 看懂每一步';
+    ball.hidden = name !== 'workbench';
+    if (name === 'knowledge') loadCards();
+    document.querySelector('[data-page-view="'+name+'"] h1')?.focus({preventScroll:true});
+    window.scrollTo(0,0); queuePosition();
+  }
+  for (const link of document.querySelectorAll('[data-page-link]')) listen(link, 'click', event => {
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    event.preventDefault(); navigate(link.dataset.pageLink);
+  });
+  listen(window,'hashchange',()=>navigate(route(),{replace:true}));
+  listen(window,'popstate',()=>navigate(route(),{replace:true}));
+
   function clampPosition() {
     if (!open || !panel.style.left) return;
     const rect = panel.getBoundingClientRect();
     panel.style.left = Math.max(12, Math.min(innerWidth - rect.width - 12, rect.left)) + 'px';
     panel.style.top = Math.max(12, Math.min(innerHeight - rect.height - 12, rect.top)) + 'px';
   }
-  function show(value, tab) {
+  function show(value, restoreFocus = true) {
     open = value; panel.hidden = !value; ball.setAttribute('aria-expanded', String(value));
     ball.setAttribute('aria-label', value ? '收起步骤辅导' : '打开步骤辅导');
     if (value) {
-      if (tab) setTab(tab);
       clampPosition(); $('tutor-close').focus({ preventScroll: true });
-    } else returnFocus.focus({ preventScroll: true });
+    } else if (restoreFocus) returnFocus.focus({ preventScroll: true });
   }
   listen(ball, 'click', () => { returnFocus = ball; show(!open); });
   listen($('tutor-close'), 'click', () => show(false));
-  for (const button of document.querySelectorAll('[data-open-tutor]')) listen(button, 'click', () => { returnFocus = button; show(true, button.dataset.openTutor); });
-  for (const button of document.querySelectorAll('[data-tutor-tab]')) {
-    listen(button, 'click', () => setTab(button.dataset.tutorTab));
-    listen(button, 'keydown', event => {
-      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-      event.preventDefault();
-      const next = event.key === 'Home' ? 'chat' : event.key === 'End' ? 'knowledge' : button.dataset.tutorTab === 'chat' ? 'knowledge' : 'chat';
-      setTab(next); $(`tutor-${next}-tab`).focus();
-    });
-  }
   listen($('knowledge-retry'), 'click', loadCards);
-  listen(document.querySelector('.tutor-practice'), 'click', () => show(false));
   listen(panel, 'keydown', event => {
     if (event.key === 'Escape' && !document.body.classList.contains('is-viz-full')) { event.preventDefault(); event.stopPropagation(); show(false); }
   });
@@ -119,7 +132,9 @@ export function createWorkbenchUI() {
     found: '如果数组有重复值，这次一定返回第一个位置吗？',
     'not-found': '哪个边界条件说明目标已经不在数组中了？'
   };
+  navigate(route(), {replace:true});
   return {
+    navigate,
     setContext(context) { $('tutor-prompt').textContent = prompts[context?.step?.event] || prompts.init; queuePosition(); },
     destroy() { lifetime.abort(); layoutObserver.disconnect(); if (positionFrame !== null) cancelAnimationFrame(positionFrame); }
   };

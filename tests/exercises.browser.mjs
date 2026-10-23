@@ -25,6 +25,21 @@ try {
  const status=text=>page.waitForFunction(text=>document.querySelector('#exercise-status').textContent.includes(text),text);
  const select=id=>page.selectOption('#exercise-select',id);
  const submit=async()=>{await page.click('#submit-exercise');await page.waitForFunction(()=>!document.querySelector('#submit-exercise').disabled);};
+ // Existing grading scenarios now navigate to each independent view before interacting.
+ for (const method of ['click','fill','selectOption','check']) {
+   const original=page[method].bind(page);
+   page[method]=async(selector,...args)=>{
+     const node=page.locator(selector).first();
+     if(await node.count()) {
+       const name=await node.evaluate(n=>n.closest('[data-page-view]')?.dataset.pageView);
+       if(name && await page.locator('body').getAttribute('data-page')!==name) {
+         const link=page.locator('.nav-item[data-page-link="'+name+'"]');if(!await link.isVisible())await page.locator('#sidebar-toggle').click();
+         await link.click();await page.waitForFunction(name=>document.body.dataset.page===name,name);
+       }
+     }
+     return original(selector,...args);
+   };
+ }
  const key='datastructure-agent:learning:v1';
  const records=()=>page.evaluate(key=>JSON.parse(localStorage.getItem(key)||'{"attempts":[]}').attempts,key);
  await page.goto(base);await ready();assert.equal(await page.locator('#next-hint-btn').isDisabled(),true);
@@ -77,7 +92,7 @@ try {
  if(process.env.TEST_SCREENSHOT_DIR){await mkdir(process.env.TEST_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/exercises-desktop.png',fullPage:true});}
  await page.setViewportSize({width:390,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
  if(process.env.TEST_SCREENSHOT_DIR)await page.screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/exercises-mobile.png',fullPage:true});
- const denied=await browser.newPage();await denied.addInitScript(()=>Object.defineProperty(window,'localStorage',{get(){throw Error('SecurityError');}}));await denied.goto(base);await denied.waitForFunction(()=>document.querySelector('#exercise-load-status').textContent.includes('已读取'));await denied.fill('#exercise-value','3');await denied.click('#submit-exercise');await denied.waitForFunction(()=>document.querySelectorAll('.learning-record').length===1);assert.match(await denied.locator('#storage-warning').innerText(),/当前页面有效/);await denied.close();
+ const denied=await browser.newPage();await denied.addInitScript(()=>Object.defineProperty(window,'localStorage',{get(){throw Error('SecurityError');}}));await denied.goto(base+'/#practice');await denied.waitForFunction(()=>document.querySelector('#exercise-load-status').textContent.includes('已读取'));await denied.fill('#exercise-value','3');await denied.click('#submit-exercise');await denied.waitForFunction(()=>document.querySelectorAll('.learning-record').length===1);assert.match(await denied.locator('#storage-warning').innerText(),/当前页面有效/);await denied.close();
  assert.deepEqual(errors,[]);passed.push('corrupt storage is preserved, permission-denied storage falls back visibly; desktop/mobile have no overflow or uncaught errors');
  console.log(JSON.stringify({passed:passed.length,checks:passed},null,2));
 } finally {await browser?.close();child.kill();if(child.exitCode===null)await once(child,'exit');}

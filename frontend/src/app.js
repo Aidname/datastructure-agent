@@ -11,7 +11,7 @@ const $ = id => document.getElementById(id);
 let run = null, playback = null, viz = null, pending = null, generation = 0;
 let currentContext = null;
 const speedMs = 1000;
-const ui = createWorkbenchUI();
+const ui = createWorkbenchUI({ onNavigate(page) { if (page !== 'workbench' && playback?.getState().playing) playback.pause(); } });
 function mountWindow() {
   $('visualization-panel').replaceChildren();
   viz = createVizWindow($('visualization-panel'), {
@@ -28,13 +28,13 @@ export function subscribeStep(listener) {
   listeners.add(listener); listener(currentContext);
   return () => listeners.delete(listener);
 }
-const exercises = createExercises($('exercise-mount'), {onBeforeAnswer:()=>playback?.pause()});
+const exercises = createExercises($('exercise-mount'), {onBeforeAnswer:()=>playback?.pause(), recordsContainer:$('records-mount'), onPracticeRequested:()=>ui.navigate('practice')});
 const unsubscribeExercises = subscribeStep(exercises.setContext);
 function publish(context) {
   currentContext = context;
   agent.setContext(context);
   ui.setContext(context);
-  $('exercise-context').textContent = context ? `当前运行：第 ${context.stepIndex+1} 步 / 共 ${context.total} 步。题目情境由练习模块单独标明。` : '当前无工作台运行，可独立完成固定题练习。';
+  $('exercise-context').textContent = context ? `当前运行：第 ${context.stepIndex+1} 步 / 共 ${context.total} 步。题目仍使用自己的固定情境。` : '当前无工作台运行，可独立完成固定题练习。';
   const host = $('exercise-mount');
   if (context) { host.dataset.runId=context.runId; host.dataset.stepIndex=String(context.stepIndex); }
   else { delete host.dataset.runId;delete host.dataset.stepIndex; }
