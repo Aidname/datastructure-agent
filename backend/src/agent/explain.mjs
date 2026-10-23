@@ -1,28 +1,8 @@
 import { getRun } from '../runs/store.js';
 import { checkRateLimit, reserveModelCall, finishModelCall, recordMockCall } from './rate-limit.js';
-import { guardOutput, verifyOutput } from './output-guard.js';
+import { guardOutput } from './output-guard.js';
 import { buildPrompt } from './prompt.js';
-import { refersToRun } from './step-question.js';
-import { conversations, validateConversation, resolveFollowup } from './conversation.js';
-import { retrieveKnowledge, loadKnowledgeCards, verifiedCards, sourceRef, isStepQuestion } from '../knowledge/retrieve.js';
-
-function pickCardId(ev) {
-  if (ev === 'probe') return 'bs-k03';
-  if (ev === 'move-left') return 'bs-k04';
-  if (ev === 'move-right') return 'bs-k05';
-  if (ev === 'found') return 'bs-k08';
-  if (ev === 'not-found') return 'bs-k06';
-  return 'bs-k01';
-}
-
-const IRRELEVANT_PATTERNS = [
-  /(天气预报|推荐电影|推荐音乐|股票行情|讲个笑话|陪我聊天)/,
-  /(你是谁|你几岁|你喜欢|你能做啥|讲个笑话|陪我聊天)/,
-];
-function isIrrelevantQuestion(question) {
-  if (!question) return false;
-  return IRRELEVANT_PATTERNS.some(p => p.test(question));
-}
+import { conversations, validateConversation } from './conversation.js';
 
 export async function handleAgentExplain(parsedBody, ctx = {}) {
   if (!validateConversation(parsedBody)) return { status: 400, body: { error: { code: 'INVALID_INPUT', message: 'conversationId与turnId须同时提供，且为8至80位字母、数字或连接符。' } } };
@@ -34,11 +14,11 @@ export async function handleAgentExplain(parsedBody, ctx = {}) {
   const turn = conversations.begin(parsedBody, ctx.req);
   if (turn.error) return turn.error;
   if (turn.cached) return turn.cached;
-  const execution = { ...ctx, history: turn.history, topicQuestion: parsedBody.question };
+  const execution = { ...ctx, history: turn.history };
   try {
     const result = await explain(parsedBody, execution);
-    // Errors, unrelated questions and missing knowledge never become learning history.
-    if (result.status === 200 && result.body.knowledgeUsed) turn.commit(result, execution.topicQuestion);
+    // Store successful replies even when no knowledge card was retrieved.
+    if (result.status === 200 && typeof result.body.answer === 'string' && result.body.answer.trim()) turn.commit(result);
     return result;
   } finally { turn.release(); }
 }
@@ -101,74 +81,13 @@ async function explain(parsedBody, ctx = {}) {
     const limit = checkRateLimit(req);
     if (!limit.allowed) return { status: 429, body: { error: { code: 'RATE_LIMIT_EXCEEDED', message: '请求过于频繁，请稍后再试', retryAfter: Math.ceil(limit.resetIn / 1000) } } };
   }
-  if (mode !== 'real' || isIrrelevantQuestion(question) || (!ev && arr.length === 0)) recordMockCall(req, bodySessionId);
+  if (mode !== 'real') recordMockCall(req, bodySessionId);
+  // Compatibility metadata: chat does not read or cite the knowledge catalog.
+  const metadata = { sourceRefs: [], knowledgeUsed: false,
+    retrieval: { method: 'none', status: 'disabled', matchedCardIds: [], contextCardId: null, matches: [] } };
+  const stepRefs = [{ runId, stepIndex: idx, event: ev, left, right, mid, array: arr, target }];
 
-  // ===== P2 FIX: 空数组判断修正 =====
-  // 只有 step 完全没有 event（真正信息不足）才返回信息不足
-  // 空数组 + 有 event（如 init）是合法状态，应正常解释
-  if (!ev && arr.length === 0) {
-    return {
-      status: 200,
-      body: {
-        runId, stepIndex: idx,
-        answer: '当前步骤信息不足，无法进行分析。请确认算法已正确运行。',
-        stepRefs: [{ runId, stepIndex: idx, event: ev, left, right, mid }],
-        sourceRefs: [],
-        usage: { model: 'mock', cost: 0, mock: true, infoInsufficient: true }
-      }
-    };
-  }
-
-  // 检索已核验知识卡
-  const cardId = pickCardId(ev);
-  let selectedCards, retrieval;
-  try {
-    const catalog = loadKnowledgeCards();
-    const topicId = run.algorithm;
-    const contextCard = verifiedCards(topicId, catalog).find(item => item.id === cardId);
-    const followup = resolveFollowup(question, ctx.history || []);
-    ctx.topicQuestion = followup.topicQuestion;
-    const result = retrieveKnowledge(followup.query, topicId, { cards: catalog, limit: 2 });
-    const generic = isStepQuestion(question) || (followup.followup && isStepQuestion(followup.topicQuestion));
-    if (generic) { result.cards = []; result.matches = []; }
-    selectedCards = [...result.cards];
-    if ((selectedCards.length || generic) && contextCard && !selectedCards.some(item => item.id === contextCard.id)) selectedCards.push(contextCard);
-    const grounded = !selectedCards.length && (refersToRun(question, run, step) || (followup.followup && refersToRun(followup.topicQuestion, run, step)));
-    if (grounded) {
-      const ids = [cardId, 'bs-k03', 'bs-k02'];
-      selectedCards = [...new Set(ids)].map(id => verifiedCards(topicId, catalog).find(card => card.id === id)).filter(Boolean);
-    }
-    retrieval = { method: result.method, status: grounded && selectedCards.length ? 'step-grounded' : result.cards.length ? 'matched' : selectedCards.length ? 'step-context' : 'no-match',
-      matchedCardIds: result.cards.map(item => item.id), contextCardId: selectedCards.some(item => item.id === cardId) ? cardId : null,
-      matches: result.matches.map(({card,score,matchedTerms}) => ({cardId:card.id,score,matchedTerms})) };
-  } catch {
-    return { status: 503, body: { error: { code: 'KNOWLEDGE_UNAVAILABLE', message: '已核验知识资料暂不可用，请稍后重试' } } };
-  }
-  const refs = selectedCards.map(sourceRef);
-
-  // ===== 无关问题处理 =====
-  if (isIrrelevantQuestion(question)) {
-    return {
-      status: 200,
-      body: {
-        runId, stepIndex: idx,
-        answer: `你的问题「${question}」与当前二分查找步骤无关。我专注于帮你理解这一步发生了什么——比如「为什么 mid 是这样算的？」或「下一步为什么更新左边界？」。`,
-        hintLevel: level,
-        stepRefs: [{ runId, stepIndex: idx, event: ev, left, right, mid }],
-        sourceRefs: [], knowledgeUsed: false, retrieval: { method: retrieval.method, status: 'irrelevant', matchedCardIds: [], contextCardId: null, matches: [] },
-        usage: { model: 'mock', cost: 0, mock: true, irrelevant: true }
-      }
-    };
-  }
-
-  if (!selectedCards.length) {
-    if (mode === 'real') recordMockCall(req, bodySessionId);
-    return { status: 200, body: { runId, stepIndex: idx, hintLevel: level,
-      answer: '当前已核验知识卡中没有找到与你的问题匹配的资料，暂不能给出有资料依据的解释。当前真实步骤为 ' + ev + '，区间 [' + left + ', ' + right + ']。请补充与二分查找有关的具体问题。',
-      stepRefs: [{ runId, stepIndex: idx, event: ev, left, right, mid }], sourceRefs: [], knowledgeUsed: false, retrieval,
-      usage: { model: 'local', cost: 0, mock: true, insufficientKnowledge: true } } };
-  }
-
+  // Every valid question in real mode goes to the provider after quota checks.
   // ===== 真实模型模式 =====
   if (mode === 'real') {
     let receipt;
@@ -176,7 +95,7 @@ async function explain(parsedBody, ctx = {}) {
     try {
       const { DeepSeekProvider } = await import('./providers/deepseek.js');
       const provider = new DeepSeekProvider();
-      const messages = buildPrompt(run, step, level, question, selectedCards, ctx.history || []);
+      const messages = buildPrompt(run, step, level, question, ctx.history || []);
       const maxTokens = 1024;
       const maximumTokens = Buffer.byteLength(JSON.stringify(messages), 'utf8') + maxTokens + 256;
       const allocation = reserveModelCall(req, bodySessionId, maximumTokens);
@@ -188,12 +107,8 @@ async function explain(parsedBody, ctx = {}) {
       const elapsedMs = Date.now() - startedAt;
 
       const guard = guardOutput(result.content);
-      let finalAnswer = guard.valid ? result.content : (guard.truncated || '这次没有收到有效的讲解，请重试这个问题。');
-
-      for (const card of selectedCards) {
-        const vr = verifyOutput(finalAnswer, card);
-        if (!vr.pass) { finalAnswer = vr.suggestion; break; }
-      }
+      if (!guard.valid && !guard.truncated) throw new Error('MODEL_CALL_FAILED');
+      const finalAnswer = guard.valid ? result.content : guard.truncated;
 
       finishModelCall(receipt, { tokens: result.usage?.totalTokens ?? null, cost: result.cost ?? null, elapsedMs });
 
@@ -204,10 +119,8 @@ async function explain(parsedBody, ctx = {}) {
           stepIndex: idx,
           hintLevel: level,
           answer: finalAnswer,
-          stepRefs: [{ runId, stepIndex: idx, event: ev, left, right, mid, knowledgeCard: retrieval.contextCardId, array: arr.length <= 20 ? arr : undefined, target }],
-          sourceRefs: refs,
-      retrieval,
-          knowledgeUsed: selectedCards.length > 0,
+          stepRefs,
+          ...metadata,
           usage: {
             model: result.model || 'deepseek-chat',
             cost: result.cost ?? null,
@@ -280,10 +193,8 @@ async function explain(parsedBody, ctx = {}) {
       stepIndex: idx,
       hintLevel: level,
       answer,
-      stepRefs: [{ runId, stepIndex: idx, event: ev, left, right, mid, knowledgeCard: retrieval.contextCardId, array: arr.length <= 20 ? arr : undefined, target }],
-      sourceRefs: refs,
-          retrieval,
-      knowledgeUsed: selectedCards.length > 0,
+      stepRefs,
+          ...metadata,
       usage: { model: 'mock', cost: 0, mock: true }
     }
   };

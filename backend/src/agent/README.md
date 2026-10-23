@@ -1,6 +1,6 @@
 # Agent 服务（成员05）
 
-本模块已实现：真实步骤读取、按问题检索 verified 知识卡并补充事件上下文、模板 Mock、DeepSeek HTTP 适配、自然助教提示词、最近10轮连续问答、基础输出规则、独立聊天页、限流、用量记录及预算预留。规则检查不能保证模型回答全部正确。
+本模块已实现：真实页面步骤/源码上下文、最多10轮服务端问答历史、直接DeepSeek调用、自然助教提示词、显式Mock、聊天界面、限流用量和预算预留。聊天不读取、匹配或引用知识卡；知识卡阅读及查询接口独立保留。
 
 ## 启动
 
@@ -18,7 +18,7 @@ Node >=22.9，使用内置 fetch，无新增运行依赖。根目录复制 `.env
 
 `POST /api/agent/explain` 输入 `{runId,stepIndex,question,hintLevel,sessionId?,conversationId?,turnId?}`。question最多2000字符，参数严格校验，状态只来自服务端，不采用客户端伪造变量。sessionId仅用于展示统计，不是权限或限流身份。
 
-成功返回 `{runId,stepIndex,hintLevel,answer,stepRefs,sourceRefs,knowledgeUsed,retrieval,usage}`。按问题检索最多2张卡并补当前事件卡；泛化提问使用步骤卡；无匹配时不调用模型、不编造引用。知识查询接口与排序方法见[检索说明](../knowledge/README.md)。真实 usage包含模型、tokens、elapsedMs、cost/CNY及估算说明；上游未给完整用量或未配置价格时保留null，不能当成免费。输入/输出单价必须依据实际模型和账户核对后填入环境变量，代码不内置未核实价格。
+成功返回 `{runId,stepIndex,hintLevel,answer,stepRefs,sourceRefs,knowledgeUsed,retrieval,usage}`。stepRefs来自真实运行；为兼容旧消费者，sourceRefs固定为空、knowledgeUsed=false、retrieval.method=none/status=disabled。真实模式下有效问题在参数、运行及额度检查后直接调用模型；没有关键词或知识资料不可用也不会拦截聊天。真实 usage包含模型、tokens、elapsedMs、cost/CNY及估算说明；上游未给完整用量或未配置价格时保留null，不能当成免费。输入/输出单价必须依据实际模型和账户核对后填入环境变量，代码不内置未核实价格。
 
 `GET /api/agent/usage?sessionId=...` 返回本次服务进程、北京时间当日、同socket来源与session的请求次数、失败数、累计耗时、tokensUsed/costUsed。出现未知调用时累计值为null；页面与POST使用相同session。统计重启清零，**预算预留不会随统计清零**。
 
@@ -45,12 +45,8 @@ node --test tests/knowledge-retrieval.test.mjs tests/agent-explain.test.mjs test
 
 前端只提交随机conversationId与turnId，历史由服务端保存；同一运行的步骤切换保留会话，换运行隔离。最多10轮、8000字符，1小时无活动过期、200个会话上限，重启清空；此功能不是账号或跨设备聊天存储。失败重试复用原ID；同会话并发409，成功结果在保留窗口内幂等重放。
 
-省略式追问结合上个成功话题检索，明确新问题独立检索；历史文字不覆盖服务端真实步骤。prompt允许直接解释已显示的状态，按三级深度讲解，不固定套话或反问。正文不附整卡，sourceRefs保留。细节及实际检查见[连续追问检查](../../../docs/architecture/agent-conversation-check-20261023.md)，接口见[API约定](../../../docs/architecture/api-contract.md)。
+模型直接理解本轮问题和最多10轮历史，不做关键词或省略句分类。prompt包含当前数组/目标/事件/变量、上一步快照、完整展示代码及高亮lineId/sourceVersion。页面事实以服务端状态为准，模型可运用通用算法知识；不伪造教材或知识卡出处。失败不进入历史；成功回复即使knowledgeUsed=false也会进入会话。
 
-## 引用画面数值的口语问题
+原口语兜底step-question.js及知识卡输出规则已移除。输出只做空值/长度处理，空回复返回502可重试；限流、预算、超时和幂等控制保持。问答失败不影响动画/练习。
 
-关键词检索未命中时，step-question.js检查问题是否在引用服务端运行中的数组数值、目标、边界或下标，并限制为步骤操作的口语表达。符合时补充当前事件、中点和下标知识卡，retrieval.status=step-grounded；这不是语义检索命中，matches/matchedCardIds仍为空。明确其他主题、未知数字等仍保持无资料处理；该规则不是通用自然语言理解。
-
-例如标准数组第3步第一次问“为什么是到7不是到5”，不再因缺少mid/left关键词被拦截。后续省略式追问保留该话题。prompt同时携带当前与上一步服务端快照，明确旧mid=2及比较值5、当前mid未计算；不依据用户提供的数字修改真实状态。提示1可以直接解释已经发生的变化，仍不揭晓尚未发生的预测题。
-
-新增检查：tests/step-question.test.mjs、agent-real-mode.test.mjs中的口语数值场景及agent-conversation.browser.mjs的截图原句。模型路径检查使用本地桩，没有付费调用，也不宣称真实回答质量已经验收。
+当前流程与本地检查见[直接模型问答检查](../../../docs/architecture/agent-direct-chat-check-20261023.md)。旧十轮检查记录是检索仍在聊天中时的历史结果。

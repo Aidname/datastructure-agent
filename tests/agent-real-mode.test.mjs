@@ -37,12 +37,12 @@ async function input(base) {
   return { runId: run.body.runId, stepIndex: 1, question: '这一步为什么', hintLevel: 1, sessionId: 'test-session' };
 }
 
-test('real HTTP mode uses server step/card; explicit Mock overrides a configured Key', async () => {
+test('real HTTP mode uses server page state; explicit Mock overrides a configured Key', async () => {
   const real = await start(); const request = await input(real);
   const response = await call(real, '/api/agent/explain', request);
   assert.equal(response.status, 200); assert.equal(response.body.usage.mock, false);
   assert.equal(response.body.usage.tokens.totalTokens, 15);
-  assert.equal(response.body.stepRefs[0].event, 'probe'); assert.equal(response.body.sourceRefs[0].cardId, 'bs-k03');
+  assert.equal(response.body.stepRefs[0].event, 'probe'); assert.deepEqual(response.body.sourceRefs, []);assert.equal(response.body.knowledgeUsed,false);
   const usage = await call(real, '/api/agent/usage?sessionId=test-session');
   assert.equal(usage.body.requests, 1); assert.equal(usage.body.tokensUsed, 15);
   assert.ok(usage.body.costUsed > 0);
@@ -82,32 +82,7 @@ test('HTTP budgets reserve concurrently and source rate limits survive a new run
   assert.equal((await call(limit, '/api/agent/explain', { ...limited, sessionId: 'new-session' })).status, 429);
 });
 
-test('question retrieval crosses events and feeds only selected verified cards to the model', async () => {
-  const base = await start(); const request = await input(base);
-  const result = await call(base, '/api/agent/explain', { ...request, question: '为什么数组必须有序 TEST_RETRIEVAL' });
-  assert.equal(result.status,200); assert.equal(result.body.usage.mock,false);
-  assert.equal(result.body.stepRefs[0].event,'probe');
-  assert.equal(result.body.sourceRefs[0].cardId,'bs-k01');
-  assert.ok(result.body.sourceRefs.some(ref=>ref.cardId==='bs-k03'));
-  assert.equal(result.body.retrieval.status,'matched');
-  assert.equal(result.body.retrieval.matchedCardIds[0],'bs-k01');
-  assert.ok(result.body.sourceRefs.every(ref=>ref.verified && ref.chapter===null && ref.pages===null));
-  const fallback = await call(base, '/api/agent/explain', { ...request, question: '请解释当前步骤' });
-  assert.equal(fallback.body.retrieval.status,'step-context');
-  assert.equal(fallback.body.sourceRefs[0].cardId,'bs-k03');
-  assert.deepEqual(fallback.body.retrieval.matchedCardIds,[]);
-});
 
-test('unmatched questions do not invoke provider or fabricate citations; overlong questions reject', async () => {
-  const base = await start(); const request = await input(base);
-  const result = await call(base, '/api/agent/explain', { ...request, question: '红黑树怎样旋转' });
-  assert.equal(result.status,200); assert.equal(result.body.retrieval.status,'no-match');
-  assert.equal(result.body.knowledgeUsed,false); assert.deepEqual(result.body.sourceRefs,[]);
-  assert.equal(result.body.usage.insufficientKnowledge,true); assert.equal(result.body.usage.cost,0);
-  assert.match(result.body.answer,/没有找到/);
-  const overlong = await call(base, '/api/agent/explain', { ...request, question: 'x'.repeat(2001) });
-  assert.equal(overlong.status,400); assert.equal(overlong.body.error.code,'INVALID_INPUT');
-});
 
 test('knowledge HTTP catalog/search works without model credentials and validates query parameters', async () => {
   const base = await start({DEEPSEEK_API_KEY:'',AGENT_MOCK:'false'});
@@ -121,24 +96,23 @@ test('knowledge HTTP catalog/search works without model credentials and validate
   assert.ok((await call(base,'/api/health')).body.implemented.includes('knowledge'));
 });
 
-test('colloquial numeric questions reach provider with current/previous truth and verified step cards', async () => {
-  const base = await start({MODEL_TIMEOUT_MS:'500'}); const body = await input(base);
-  const request = {...body, stepIndex:2, hintLevel:1, question:'为什么是到7不是到5',conversationId:'numeric-question-conversation',turnId:'numeric-turn-0001'};
-  const result = await call(base,'/api/agent/explain',request);
-  assert.equal(result.status,200);assert.equal(result.body.usage.mock,false);assert.equal(result.body.retrieval.status,'step-grounded');
-  assert.equal(result.body.stepRefs[0].mid,null);assert.deepEqual(result.body.retrieval.matches,[]);
-  assert.deepEqual(result.body.sourceRefs.map(ref=>ref.cardId),['bs-k04','bs-k03','bs-k02']);
-  const follow = await call(base,'/api/agent/explain',{...request,question:'能再讲详细一点吗？',turnId:'numeric-turn-0002'});
-  assert.equal(follow.body.usage.mock,false);assert.equal(follow.body.retrieval.status,'step-grounded');
-  const next = await call(base,'/api/agent/explain',{...request,stepIndex:3,question:'换个说法',turnId:'numeric-turn-0003'});
-  assert.equal(next.body.stepRefs[0].mid,3);assert.equal(next.body.usage.mock,false);
+
+
+test('every valid phrasing reaches model with source code, highlight and previous state; no knowledge references', async () => {
+ const base=await start({MODEL_TIMEOUT_MS:'500',TEST_BLOCK_KNOWLEDGE_READ:'true'});const body=await input(base);
+ assert.equal((await call(base,'/api/knowledge/cards')).status,503);
+ for(const question of ['为什么这一步是到6不是5 TEST_PAGE_CONTEXT','能再讲详细一点吗？','随便换一种问法','红黑树怎样旋转','你是谁','为什么选999不是888']) {
+  const result=await call(base,'/api/agent/explain',{...body,stepIndex:2,question});
+  assert.equal(result.status,200,question);assert.equal(result.body.usage.mock,false);assert.equal(result.body.usage.tokens.totalTokens,15);
+  assert.equal(result.body.retrieval.status,'disabled');assert.equal(result.body.knowledgeUsed,false);assert.deepEqual(result.body.sourceRefs,[]);
+  assert.equal(result.body.stepRefs[0].mid,null);assert.ok(!('knowledgeCard' in result.body.stepRefs[0]));
+ }
+ assert.equal((await call(base,'/api/agent/usage?sessionId=test-session')).body.requests,6);
+ assert.equal((await call(base,'/api/agent/explain',{...body,question:'x'.repeat(2001)})).status,400);
 });
 
-test('numeric context fallback does not route unrelated topics or unknown numbers to a model', async () => {
-  const base=await start();const body=await input(base);
-  for(const question of ['为什么天气7度不是5度','红黑树7次旋转和5次有什么区别','为什么选99不是88']) {
-    const result=await call(base,'/api/agent/explain',{...body,stepIndex:2,question});
-    assert.equal(result.body.retrieval.status,'no-match',question);assert.equal(result.body.usage.insufficientKnowledge,true);
-    assert.deepEqual(result.body.sourceRefs,[]);
-  }
+test('empty model output is a retryable failure rather than a successful canned answer', async () => {
+ const base=await start();const body={...await input(base),question:'TEST_EMPTY_OUTPUT',conversationId:'empty-conversation',turnId:'empty-turn-0001'};
+ for(let i=0;i<2;i++)assert.equal((await call(base,'/api/agent/explain',body)).status,502);
+ assert.equal((await call(base,'/api/agent/usage?sessionId=test-session')).body.requests,2);
 });

@@ -69,10 +69,6 @@ export function createAgentChat(container, { embedded = false, onBeforeSend = ()
       if (!alive || ticket !== serial) return;
       if (!res.ok || typeof data.answer !== 'string') throw new Error(data.error?.message || '服务返回了无效回复');
       const node = append('assistant', data.answer, `回答归属：runId=${data.runId || input.runId} · 步骤${(data.stepIndex ?? input.stepIndex)+1} · 级别${data.hintLevel || input.hintLevel} · ${Date.now()-started}ms`);
-      if (data.sourceRefs?.length) {
-        const refs = document.createElement('div'); refs.className = 'message-meta';
-        refs.textContent = data.sourceRefs.map(ref=>`依据：${ref.cardId} ${ref.title || ''}（${ref.sourceId || '未提供来源'}）`).join('；'); node.append(refs);
-      }
     } catch (error) {
       if (!alive || ticket !== serial || error.name === 'AbortError') return;
       failed = {...input}; append('system', '请求失败：' + error.message, '原请求：' + meta); retry.style.display = 'inline-block';

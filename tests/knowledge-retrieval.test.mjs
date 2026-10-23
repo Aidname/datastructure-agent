@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { retrieveKnowledge, knowledgeResponse, loadKnowledgeCards, verifiedCards, isStepQuestion, sourceRef } from '../backend/src/knowledge/retrieve.js';
-import { buildPrompt } from '../backend/src/agent/prompt.js';
 
 test('question retrieval ranks each knowledge topic ahead of the current event', () => {
   const cases = [
@@ -68,14 +67,4 @@ test('knowledge HTTP response supports verified catalog/search, provenance and v
 test('retrieval input rejects invalid types and lengths rather than silently coercing', () => {
   for (const q of ['',null,{},'x'.repeat(2001)]) assert.throws(()=>retrieveKnowledge(q),TypeError);
   for (const limit of [0,11,1.5,'1']) assert.throws(()=>retrieveKnowledge('中点','binary-search',{limit}),TypeError);
-});
-
-test('prompt includes every selected card while keeping examples separate from the real step', () => {
-  const cards = loadKnowledgeCards();
-  const selected = [cards[0],cards[2]];
-  const step = {array:[2,4,6],target:4,stepIndex:1,event:'probe',variables:{left:0,right:2,mid:1}};
-  const prompt = buildPrompt({},step,1,'为什么必须有序',selected).map(m=>m.content).join('\n');
-  for (const card of selected) { assert.ok(prompt.includes(card.id)); assert.ok(prompt.includes(card.content)); }
-  assert.match(prompt,/目标值: 4/); assert.match(prompt,/A\[mid\] 的值: 4/);
-  assert.ok(prompt.includes('不要把不同卡片中的示例误当成当前运行'));
 });

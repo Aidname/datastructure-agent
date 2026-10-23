@@ -24,7 +24,7 @@ try {
   await page.waitForFunction(() => !document.querySelector('#send-btn').disabled && document.querySelector('#usage-info').textContent.includes('调用 1 次'));
   assert.match(await page.locator('.message.assistant').innerText(), /步骤2/);
   assert.match(await page.locator('#usage-info').innerText(), /Token 0/);
-  assert.equal(await page.locator('.message.assistant .message-meta').count(), 2);
+  assert.equal(await page.locator('.message.assistant .message-meta').count(), 1);
 
   let pending;
   await page.route('**/api/agent/explain', route => { pending = route; });
@@ -52,7 +52,7 @@ try {
   assert.equal(payloads[1].question, '重试必须保留这个问题'); assert.equal(payloads[1].stepIndex, 4);
   assert.equal(dialogs.length, 0);
   assert.equal(errors.length, 0);
-  console.log('Browser passed: Mock send/session usage, source display, old-step attribution, retry original payload; no page errors.');
+  console.log('Browser passed: Mock send/session usage, no knowledge citation, old-step attribution, retry original payload; no page errors.');
 } finally {
   if (browser) await browser.close();
   if (child.exitCode === null) { const exited = once(child, 'exit'); child.kill(); await exited; }
