@@ -103,3 +103,6 @@ Agent检索字段另含matchedCardIds与contextCardId。问题匹配优先于事
 服务端按socket来源+runId+conversationId隔离内存记录，最多10轮成功且有依据的完整问答，总文本上限8000个UTF-16字符；超限淘汰最早整轮。1小时无活动过期，最多200个会话，重启清空。客户端history不作为历史或权威状态，sessionId仍仅作统计。跨步骤保留对话并注入服务端真实状态，新run隔离。
 
 同会话并发409 CONVERSATION_BUSY；全部会话执行中且达到容量时429 CONVERSATION_BUSY。保留窗口内同turnId与相同请求重放成功结果，不重复调用模型；同ID改写问题/步骤/级别400 INVALID_INPUT。失败/无关/无资料回复不进入历史。正文不再自动拼接整卡，sourceRefs字段与来源展示保留。详见[检查记录](agent-conversation-check-20261023.md)。
+
+
+2026-10-23口语步骤问答补充：关键词未命中但问题可关联当前运行数值/指代时，retrieval.status可为step-grounded，提供真实步骤及相关verified卡给模型；matches/matchedCardIds为空，不伪称关键词或语义命中。prompt另附上一步服务端快照，避免当前mid=null时丢失上轮比较依据。无关问题处理、十轮隔离和限流预算保持原行为。

@@ -9,7 +9,7 @@ const SYSTEM = `你是陪学生看懂算法的助教，像坐在旁边一起看�
 
 export function buildPrompt(run, step, level, question, card, history = []) {
   const arr = step.array || [], { left, right, mid } = step.variables || {};
-  const levelDesc = level === 1 ? '观察提示：说明已显示的客观状态，给一个观察切入点，不提前给出预测题的下一步结论。'
+  const levelDesc = level === 1 ? '观察提示：说明已显示的客观状态；已发生的变化可以直接解释。尚未发生的预测题只给观察切入点，不提前揭晓结论。'
     : level === 2 ? '规则解释：直接解释为什么这样更新，结合当前数值给必要计算；不要替学生揭晓尚未作答的练习。'
     : '完整讲解：可以给出下一步操作、必要计算和理由；当前已结束时可以直接说明结果。';
   const cards = Array.isArray(card) ? card : card ? [card] : [];
@@ -18,6 +18,11 @@ export function buildPrompt(run, step, level, question, card, history = []) {
     // Fetch old state from the same server run; never infer it from past model text.
     state: run.steps?.[turn.stepIndex] ? { event: run.steps[turn.stepIndex].event, variables: run.steps[turn.stepIndex].variables } : null
   }));
+  const previous = run.steps?.[step.stepIndex - 1];
+  const previousData = previous ? {
+    stepNumber: previous.stepIndex + 1, event: previous.event, variables: previous.variables,
+    comparedValue: Number.isSafeInteger(previous.variables?.mid) ? previous.array[previous.variables.mid] : null
+  } : null;
   const content = `【当前步骤客观数据】
 - 数组: [${arr.join(', ')}]
 - 目标值: ${step.target}
@@ -26,6 +31,10 @@ export function buildPrompt(run, step, level, question, card, history = []) {
 - mid: ${mid === null ? '未计算' : mid}
 - A[mid] 的值: ${Number.isSafeInteger(mid) && mid >= 0 && mid < arr.length ? arr[mid] : '（未计算或不可访问）'}
 - 步骤序号（从1开始）: ${step.stepIndex + 1}
+
+【上一步的服务端快照，不是当前状态】
+${JSON.stringify(previousData)}
+解释“为什么从某个数跳到另一个数”时，对照上一步的比较值、目标、边界变化；明确数字是元素值还是下标。不能因为当前mid未计算就忽略已经发生的比较；无法确定学生指什么时，具体澄清。
 
 【提示级别要求】${levelDesc}
 

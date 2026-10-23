@@ -13,6 +13,13 @@ try{
  page.on('request',r=>{if(r.url().endsWith('/api/agent/explain'))requests.push(r.postDataJSON());});
  await page.goto(base);await page.click('#fillDemo');await page.click('#startBtn');await page.waitForFunction(()=>document.querySelector('#stepText').textContent.includes('第 1 步'));
  await page.click('#tutor-toggle');
+ await page.click('#nextBtn');await page.click('#nextBtn');
+ await page.fill('#question-input','为什么是到7不是到5');
+ const groundedResponse=page.waitForResponse(r=>r.url().endsWith('/api/agent/explain'));
+ await page.click('#send-btn');const grounded=await(await groundedResponse).json();
+ await page.waitForFunction(()=>!document.querySelector('#send-btn').disabled);
+ assert.equal(grounded.retrieval.status,'step-grounded');assert.ok(grounded.sourceRefs.some(ref=>ref.cardId==='bs-k04'));
+ assert.ok(!grounded.answer.includes('没有找到'));await page.click('#resetBtn');
  const ask=async question=>{await page.fill('#question-input',question);const waiting=page.waitForResponse(r=>r.url().endsWith('/api/agent/explain'));await page.click('#send-btn');responses.push(await(await waiting).json());await page.waitForFunction(()=>!document.querySelector('#send-btn').disabled);};
  await ask('为什么必须有序？');const first=requests.at(-1);assert.ok(first.conversationId);assert.ok(first.turnId);
  await page.click('#nextBtn');await ask('能再讲详细一点吗？');

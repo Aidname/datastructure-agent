@@ -46,3 +46,11 @@ node --test tests/knowledge-retrieval.test.mjs tests/agent-explain.test.mjs test
 前端只提交随机conversationId与turnId，历史由服务端保存；同一运行的步骤切换保留会话，换运行隔离。最多10轮、8000字符，1小时无活动过期、200个会话上限，重启清空；此功能不是账号或跨设备聊天存储。失败重试复用原ID；同会话并发409，成功结果在保留窗口内幂等重放。
 
 省略式追问结合上个成功话题检索，明确新问题独立检索；历史文字不覆盖服务端真实步骤。prompt允许直接解释已显示的状态，按三级深度讲解，不固定套话或反问。正文不附整卡，sourceRefs保留。细节及实际检查见[连续追问检查](../../../docs/architecture/agent-conversation-check-20261023.md)，接口见[API约定](../../../docs/architecture/api-contract.md)。
+
+## 引用画面数值的口语问题
+
+关键词检索未命中时，step-question.js检查问题是否在引用服务端运行中的数组数值、目标、边界或下标，并限制为步骤操作的口语表达。符合时补充当前事件、中点和下标知识卡，retrieval.status=step-grounded；这不是语义检索命中，matches/matchedCardIds仍为空。明确其他主题、未知数字等仍保持无资料处理；该规则不是通用自然语言理解。
+
+例如标准数组第3步第一次问“为什么是到7不是到5”，不再因缺少mid/left关键词被拦截。后续省略式追问保留该话题。prompt同时携带当前与上一步服务端快照，明确旧mid=2及比较值5、当前mid未计算；不依据用户提供的数字修改真实状态。提示1可以直接解释已经发生的变化，仍不揭晓尚未发生的预测题。
+
+新增检查：tests/step-question.test.mjs、agent-real-mode.test.mjs中的口语数值场景及agent-conversation.browser.mjs的截图原句。模型路径检查使用本地桩，没有付费调用，也不宣称真实回答质量已经验收。
