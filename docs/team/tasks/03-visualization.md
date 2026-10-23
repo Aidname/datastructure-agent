@@ -1,5 +1,7 @@
 # 成员 03：数组动画与播放控制
 
+2026-10-23：当前主分支已装配03核心，默认1秒/步且不显示速度选择，底层setSpeed保留；标题栏只留全屏。下文保留原分工，现状与后续复核见[当前状态](../../architecture/current-status.md)。
+
 建议分支：`feat/m03-visualization`。主责：`frontend/src/features/visualization/`、`frontend/src/features/playback/`。页面主文件通过02集成。
 
 ## 具体实现

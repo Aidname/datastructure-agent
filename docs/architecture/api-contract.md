@@ -1,6 +1,6 @@
 # API 契约 v1
 
-更新：2026-10-23；算法接口基于PR #10，Agent/问题检索基于已合并PR #18/#20，本分支为07接入增加可选题目版本校验。同源前后端，请求使用 JSON 与 `Content-Type: application/json`。本页区分已实现行为与后续计划；消费者联调状态见[接口对齐清单](contract-alignment.md)。
+更新：2026-10-23；实现核对至main `1bd0d74`（PR #33）。算法接口沿用PR #10，题目版本校验已接入；聊天按PR #27直接调用模型，独立知识查询接口继续保留。同源前后端，请求使用 JSON 与 `Content-Type: application/json`。本页区分已实现行为与后续计划；消费者联调状态见[接口对齐清单](contract-alignment.md)。
 
 ## 当前接口
 
@@ -12,7 +12,7 @@
 | GET /api/runs/:runId/steps/:stepIndex | 200，返回 `{runId,step}` | 04 |
 | GET /api/exercises | 200，返回 `{exercises:[...]}`，当前10题 | 04+06 |
 | POST /api/exercises/check | 200，程序判分及固定提示 | 04+07 |
-| POST /api/agent/explain | 无Key且未开Mock时503；显式AGENT_MOCK=true优先；否则有Key调用DeepSeek，返回步骤/资料引用 | 05，04整合入口 |
+| POST /api/agent/explain | 无Key且未开Mock时503；显式AGENT_MOCK=true优先；否则有Key直接调用DeepSeek，返回真实步骤归属；聊天sourceRefs为空 | 05，04整合入口 |
 | GET /api/agent/usage?sessionId=... | 200，当前来源/会话的请求数、失败数、耗时及已知用量；未知值null | 05 |
 | GET /api/knowledge/cards | 200，verified卡片目录或按q检索；无Key也可使用 | 05+06 |
 

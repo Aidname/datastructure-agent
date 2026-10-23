@@ -1,12 +1,14 @@
 # 成员06内容交接：1.0.0
 
+当前接入补充（2026-10-23）：04已消费题库并提供判分，07已接正式练习/记录，知识卡可独立读取/查询；聊天不再检索或展示卡片出处。下文检索测试词用于独立知识工具，不代表聊天调用链。详见[当前状态](../../docs/architecture/current-status.md)。
+
 10卡、10题、11组人工预期均已检查；卡题verified=true。来源均为项目自编，chapter/pages为空合法。基础功能不需要教材核验。
 
 ## 04：固定题库与确定判分
 
 读取exercises/binary-search.json。choice的options是[{id,text}]，answer是选项ID字符串；judgement的answer为布尔；value的answer是安全整数，两者options=[]。bs-q02答案是字符串B，bs-q04是布尔false，bs-q06是整数-1。
 
-前端输入值规范化后由后端严格比较。空字符串、3abc、字符串false不能冒充合法的整数或布尔。判分不用模型。公开题目仅返回id/topicId/version/type/prompt/context/options，不提前发送answer/explanation/hints。提示按请求等级逐条返回，正确或主动查看第3级提示后可展示解析；具体HTTP响应仍由04/07集成。
+前端输入值规范化后由后端严格比较。空字符串、3abc、字符串false不能冒充合法的整数或布尔。判分不用模型。公开题目仅返回id/topicId/version/type/prompt/context/options，不提前发送answer/explanation/hints。提示按请求等级逐条返回；答对只返回correct=true，不展示解析；答错且主动请求第3级时返回参考答案及解析。现行HTTP响应见[API契约](../../docs/architecture/api-contract.md)。
 
 context是固定教学情境，不是线上run；before-probe仅描述练习时刻，不是新增引擎事件。sourceVersion=null仅表示未绑定04源码，不阻断固定练习；algorithmContractId=binary-search-content-v1规定题设。实际引擎采用同一闭区间、零下标、向下取整、相等即返回规则后再关联真实sourceVersion，不需要06先写04的引擎。
 

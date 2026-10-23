@@ -1,5 +1,7 @@
 # 成员 05：Agent、工具与聊天
 
+2026-10-23：模型适配与聊天已接入。按用户调整，步骤聊天不再调用知识检索或展示知识卡出处，而是直接带服务端当前/上一步、源码/高亮及最多10轮历史；下文冲突的聊天检索/资料引用要求已取消，独立知识查询继续保留。真实效果证据仍待05/08补齐，详见[当前状态](../../architecture/current-status.md)。
+
 建议分支：`feat/m05-agent`。主责：`backend/src/agent/`、`backend/src/knowledge/`、`frontend/src/features/agent/`。公共server入口由04整合。
 
 ## 具体实现
