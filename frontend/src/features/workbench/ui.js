@@ -103,6 +103,10 @@ export function createWorkbenchUI({ onNavigate = () => {} } = {}) {
   }
   listen(ball, 'click', () => { returnFocus = ball; show(!open); });
   listen($('tutor-close'), 'click', () => show(false));
+  // Dismiss without consuming the click or moving focus away from the outside control.
+  listen(document, 'pointerdown', event => {
+    if (open && !drag && !panel.contains(event.target) && !ball.contains(event.target)) show(false, false);
+  });
   listen($('knowledge-retry'), 'click', loadCards);
   listen(panel, 'keydown', event => {
     if (event.key === 'Escape' && !document.body.classList.contains('is-viz-full')) { event.preventDefault(); event.stopPropagation(); show(false); }

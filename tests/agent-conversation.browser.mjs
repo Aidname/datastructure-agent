@@ -12,8 +12,8 @@ try{
  page.on('pageerror',e=>errors.push(e.message));
  page.on('request',r=>{if(r.url().endsWith('/api/agent/explain'))requests.push(r.postDataJSON());});
  await page.goto(base);await page.click('#fillDemo');if(await page.locator('#tutor-window').isVisible())await page.click('#tutor-close');await page.click('#startBtn');await page.waitForFunction(()=>document.querySelector('#stepText').textContent.includes('第 1 步'));
- await page.click('#tutor-toggle');
  await page.click('#nextBtn');await page.click('#nextBtn');
+ await page.click('#tutor-toggle');
  await page.fill('#question-input','为什么是到7不是到5');
  const groundedResponse=page.waitForResponse(r=>r.url().endsWith('/api/agent/explain'));
  await page.click('#send-btn');const grounded=await(await groundedResponse).json();

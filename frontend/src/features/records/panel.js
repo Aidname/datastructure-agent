@@ -1,4 +1,4 @@
-import { answerText, contextText } from '../exercises/model.js';
+import { answerText, contextText, exerciseText } from '../exercises/model.js';
 import { learningSummary } from './store.js';
 
 export function createRecordsPanel(container, { store, onRetry, onClear }) {
@@ -23,7 +23,7 @@ export function createRecordsPanel(container, { store, onRetry, onClear }) {
       const node = document.createElement('li'); node.className = 'learning-record'; node.dataset.recordId = record.id;
       const result = record.correct ? '答对' : latest.get(key(record))?.correct ? '曾答错，已订正' : '答错，待订正';
       node.append(text('p', `${record.question.id} · v${record.question.version} · ${result}`, 'record-heading'));
-      node.append(text('p', record.question.prompt));
+      node.append(text('p', exerciseText(record.question.prompt)));
       node.append(text('p', `你的答案：${answerText(record.question, record.answer)}；已用提示：${record.hintsUsed.length ? record.hintsUsed.join('、') : '无'}`));
       node.append(text('p', new Date(record.createdAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }), 'learning-note'));
       const details = document.createElement('details'); details.append(text('summary', '回顾题目情境与提示'));
@@ -31,8 +31,8 @@ export function createRecordsPanel(container, { store, onRetry, onClear }) {
       details.append(text('p', record.origin ? `提交时附带工作台第 ${record.origin.stepIndex + 1} 步的关联；题目仍使用上面的固定情境。` : '独立练习，提交时没有关联工作台运行。', 'learning-note'));
       for (const level of record.hintsUsed) {
         const feedback = record.feedbackByLevel[level];
-        if (feedback?.hint) details.append(text('p', `提示 ${level}：${feedback.hint}`));
-        if (level === 3 && feedback && Object.hasOwn(feedback, 'correctAnswer')) details.append(text('p', `第三级解析：参考答案 ${answerText(record.question, feedback.correctAnswer)}。${feedback.explanation}`));
+        if (feedback?.hint) details.append(text('p', `提示 ${level}：${exerciseText(feedback.hint)}`));
+        if (level === 3 && feedback && Object.hasOwn(feedback, 'correctAnswer')) details.append(text('p', `第三级解析：参考答案 ${answerText(record.question, feedback.correctAnswer)}。${exerciseText(feedback.explanation)}`));
       }
       node.append(details);
       const current = catalog.find(q => q.id === record.question.id);

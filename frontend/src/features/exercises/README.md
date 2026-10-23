@@ -11,3 +11,5 @@ createExercises(container,{recordsContainer,onPracticeRequested,onBeforeAnswer,s
 提交携带exerciseVersion，服务端版本不符返回409并提示刷新题库。请求失败不生成记录。题库为空、接口失败可刷新重试；数据均用textContent展示。pagehide销毁模块、订阅和异步请求。
 
 详见[记录格式](../records/README.md)、[API契约](../../../../docs/architecture/api-contract.md)及[本地检查](../../../../docs/architecture/exercises-check-20261023.md)。真实访谈与试用仍由07执行。
+
+界面将题目阶段标识转换为中文：init为“查找开始”、before-probe为“计算中点前”、probe为“计算并比较中点”，边界更新及结束状态同样用中文。题干、选项、提示、解析和历史回顾中的事件名也只在显示时翻译；保留left/right/mid并注明中文含义，题目原文、版本、存储快照和判分参数保持原值。
