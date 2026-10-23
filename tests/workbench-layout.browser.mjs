@@ -33,12 +33,12 @@ try {
  passed.push('330px code beside dominant white animation; four variables in one row; no grid/speed/counter; timeline follows transport; sidebar keeps current step');
 
  await page.click('#playBtn');await page.click('#tutor-toggle');assert.equal(await page.evaluate(()=>window.__steps.at(-1).playing),true);
- await page.click('#playBtn');await page.fill('#question-input','保留这条尚未发送的问题');await page.click('#tutor-close');await page.click('#tutor-toggle');
+ await page.click('#playBtn');assert.equal(await page.locator('#tutor-window').isVisible(),false);assert.equal(await page.evaluate(()=>document.activeElement.id),'playBtn');await page.click('#tutor-toggle');const tall=await page.locator('#tutor-window').boundingBox();assert.ok(tall.y>=11&&tall.height>=1025&&tall.y+tall.height<=1039);await page.click('#question-input');assert.equal(await page.locator('#tutor-window').isVisible(),true);await page.fill('#question-input','保留这条尚未发送的问题');await page.click('#tutor-close');await page.click('#tutor-toggle');
  assert.equal(await page.inputValue('#question-input'),'保留这条尚未发送的问题');
  let held;await page.route('**/api/agent/explain',route=>{held=route;});
- await page.click('#playBtn');await page.click('#send-btn');while(!held)await new Promise(r=>setTimeout(r,5));
+ await page.click('#playBtn');assert.equal(await page.locator('#tutor-window').isVisible(),false);await page.click('#tutor-toggle');await page.click('#send-btn');while(!held)await new Promise(r=>setTimeout(r,5));
  assert.equal(await page.evaluate(()=>window.__steps.at(-1).playing),false);const body=held.request().postDataJSON();
- await page.click('#tutor-close');await page.click('#nextBtn');
+ await page.click('#nextBtn');assert.equal(await page.locator('#tutor-window').isVisible(),false);
  await held.fulfill({status:200,contentType:'application/json',body:JSON.stringify({runId:body.runId,stepIndex:body.stepIndex,hintLevel:body.hintLevel,answer:'收起期间收到的测试回复'})});
  await page.waitForFunction(()=>!document.querySelector('#send-btn').disabled);await page.click('#tutor-toggle');
  assert.match(await page.locator('.message.assistant').last().innerText(),new RegExp('步骤'+(body.stepIndex+1)));assert.match(await page.locator('.message.assistant').last().innerText(),/收起期间/);
@@ -49,7 +49,7 @@ try {
  await page.locator('.nav-item[data-page-link="knowledge"]').click();await page.waitForFunction(()=>document.querySelector('#knowledge-status').textContent.includes('10'));
  assert.equal(await page.locator('#knowledge-cards details').count(),10);await page.locator('#knowledge-cards summary').first().click();assert.match(await page.locator('#knowledge-cards details').first().innerText(),/项目自编/);
  await page.locator('.nav-item[data-page-link="workbench"]').click();await page.click('#tutor-toggle');await page.keyboard.press('Escape');assert.equal(await page.locator('#tutor-window').isVisible(),false);
- passed.push('floating tutor preserves draft/history and pending answers, opens without pausing, pauses on send, retains original step, drags, uses separate knowledge page and closes with Escape');
+ passed.push('tall floating tutor closes on outside click while keeping controls usable, stays open on inside clicks, preserves draft/history and pending answers, opens without pausing, pauses on send, retains original step, drags, uses separate knowledge page and closes with Escape');
 
  if(process.env.TEST_SCREENSHOT_DIR){await mkdir(process.env.TEST_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/layout-desktop.png',fullPage:true});await page.locator('.workspace').screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/layout-workspace.png'});await page.click('#tutor-toggle');await page.screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/layout-tutor.png'});await page.click('#tutor-close');}
  await page.fill('#arrInput',Array.from({length:100},(_,i)=>i).join(','));await page.fill('#targetInput','100');await page.click('#startBtn');await page.waitForFunction(()=>window.__steps.at(-1)?.stepIndex===0);
