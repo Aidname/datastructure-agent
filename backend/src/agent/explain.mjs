@@ -2,6 +2,7 @@ import { getRun } from '../runs/store.js';
 import { checkRateLimit, reserveModelCall, finishModelCall, recordMockCall } from './rate-limit.js';
 import { guardOutput, verifyOutput } from './output-guard.js';
 import { buildPrompt } from './prompt.js';
+import { refersToRun } from './step-question.js';
 import { conversations, validateConversation, resolveFollowup } from './conversation.js';
 import { retrieveKnowledge, loadKnowledgeCards, verifiedCards, sourceRef, isStepQuestion } from '../knowledge/retrieve.js';
 
@@ -132,7 +133,12 @@ async function explain(parsedBody, ctx = {}) {
     if (generic) { result.cards = []; result.matches = []; }
     selectedCards = [...result.cards];
     if ((selectedCards.length || generic) && contextCard && !selectedCards.some(item => item.id === contextCard.id)) selectedCards.push(contextCard);
-    retrieval = { method: result.method, status: result.cards.length ? 'matched' : selectedCards.length ? 'step-context' : 'no-match',
+    const grounded = !selectedCards.length && (refersToRun(question, run, step) || (followup.followup && refersToRun(followup.topicQuestion, run, step)));
+    if (grounded) {
+      const ids = [cardId, 'bs-k03', 'bs-k02'];
+      selectedCards = [...new Set(ids)].map(id => verifiedCards(topicId, catalog).find(card => card.id === id)).filter(Boolean);
+    }
+    retrieval = { method: result.method, status: grounded && selectedCards.length ? 'step-grounded' : result.cards.length ? 'matched' : selectedCards.length ? 'step-context' : 'no-match',
       matchedCardIds: result.cards.map(item => item.id), contextCardId: selectedCards.some(item => item.id === cardId) ? cardId : null,
       matches: result.matches.map(({card,score,matchedTerms}) => ({cardId:card.id,score,matchedTerms})) };
   } catch {

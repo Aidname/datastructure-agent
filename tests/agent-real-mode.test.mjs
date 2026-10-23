@@ -120,3 +120,25 @@ test('knowledge HTTP catalog/search works without model credentials and validate
   for (const query of ['q=','limit=0','limit=1.5','topicId=']) assert.equal((await call(base,'/api/knowledge/cards?'+query)).status,400);
   assert.ok((await call(base,'/api/health')).body.implemented.includes('knowledge'));
 });
+
+test('colloquial numeric questions reach provider with current/previous truth and verified step cards', async () => {
+  const base = await start({MODEL_TIMEOUT_MS:'500'}); const body = await input(base);
+  const request = {...body, stepIndex:2, hintLevel:1, question:'为什么是到7不是到5',conversationId:'numeric-question-conversation',turnId:'numeric-turn-0001'};
+  const result = await call(base,'/api/agent/explain',request);
+  assert.equal(result.status,200);assert.equal(result.body.usage.mock,false);assert.equal(result.body.retrieval.status,'step-grounded');
+  assert.equal(result.body.stepRefs[0].mid,null);assert.deepEqual(result.body.retrieval.matches,[]);
+  assert.deepEqual(result.body.sourceRefs.map(ref=>ref.cardId),['bs-k04','bs-k03','bs-k02']);
+  const follow = await call(base,'/api/agent/explain',{...request,question:'能再讲详细一点吗？',turnId:'numeric-turn-0002'});
+  assert.equal(follow.body.usage.mock,false);assert.equal(follow.body.retrieval.status,'step-grounded');
+  const next = await call(base,'/api/agent/explain',{...request,stepIndex:3,question:'换个说法',turnId:'numeric-turn-0003'});
+  assert.equal(next.body.stepRefs[0].mid,3);assert.equal(next.body.usage.mock,false);
+});
+
+test('numeric context fallback does not route unrelated topics or unknown numbers to a model', async () => {
+  const base=await start();const body=await input(base);
+  for(const question of ['为什么天气7度不是5度','红黑树7次旋转和5次有什么区别','为什么选99不是88']) {
+    const result=await call(base,'/api/agent/explain',{...body,stepIndex:2,question});
+    assert.equal(result.body.retrieval.status,'no-match',question);assert.equal(result.body.usage.insufficientKnowledge,true);
+    assert.deepEqual(result.body.sourceRefs,[]);
+  }
+});
