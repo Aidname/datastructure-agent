@@ -34,4 +34,4 @@ retrieval.matchedCardIds是问题匹配卡；contextCardId是提供的事件上�
 node --test tests/knowledge-retrieval.test.mjs tests/agent-explain.test.mjs tests/agent-provider.test.mjs tests/agent-real-mode.test.mjs
 ```
 
-测试覆盖10个主题、别名/公式、无结果、未核验和跨主题过滤、来源版本、多卡prompt、HTTP接口及真实模式本地桩。没有付费模型效果证据。关键词检索对未收录措辞、多义表达和其他算法覆盖有限，后续扩展内容时需补关键词和独立查询用例；本批不承诺408全部知识覆盖。
+测试覆盖10个主题、别名/公式、无结果、未核验和跨主题过滤、来源版本、独立HTTP接口；直接聊天另有真实模式本地桩。没有付费模型效果证据。关键词检索对未收录措辞、多义表达和其他算法覆盖有限，后续扩展内容时需补关键词和独立查询用例；本批不承诺408全部知识覆盖。

@@ -2,14 +2,12 @@ import assert from 'node:assert/strict';
 import { before, after, test } from 'node:test';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const children = [];
 let mockBase;
 let defaultBase;
-let cards;
 
 async function start(mock) {
   const child = spawn(process.execPath, ['backend/src/server.js'], {
@@ -34,7 +32,6 @@ async function start(mock) {
 
 before(async () => {
   [mockBase, defaultBase] = await Promise.all([start(true), start(false)]);
-  cards = JSON.parse(await readFile(new URL('../content/knowledge/cards.json', import.meta.url), 'utf8'));
 });
 after(async () => {
   await Promise.all(children.map(async child => {
@@ -70,10 +67,8 @@ test('default mode remains 503 without a model call', async () => {
   assert.equal((await call('/api/health', undefined, defaultBase)).body.modelCallsEnabled, false);
 });
 
-test('all six events and three levels cite the right real step and verified card', async () => {
+test('all six events and three levels expose real state without knowledge lookup or citations', async () => {
   const runs = [await run(), await run([1, 3, 5], 0)];
-  const expected = { init: 'bs-k01', probe: 'bs-k03', 'move-left': 'bs-k04',
-    'move-right': 'bs-k05', found: 'bs-k08', 'not-found': 'bs-k06' };
   const events = new Set();
   for (const current of runs) for (const step of current.steps) for (const level of [1, 2, 3]) {
     const response = await explain(current.runId, { stepIndex: step.stepIndex, hintLevel: level,
@@ -87,14 +82,7 @@ test('all six events and three levels cite the right real step and verified card
     assert.equal(body.stepRefs[0].runId, current.runId);
     assert.equal(body.stepRefs[0].stepIndex, step.stepIndex);
     for (const key of ['left', 'right', 'mid']) assert.equal(body.stepRefs[0][key], step.variables[key]);
-    const card = cards.find(card => card.id === expected[step.event]);
-    assert.equal(body.sourceRefs[0].cardId, card.id);
-    assert.equal(body.sourceRefs[0].sourceId, card.sourceId);
-    assert.equal(body.sourceRefs[0].verified, true);
-    assert.equal(body.sourceRefs[0].chapter, null);
-    assert.equal(body.sourceRefs[0].pages, null);
-    assert.equal(body.sourceRefs[0].title,card.title);
-    assert.ok(!body.answer.includes(card.content));
+    assert.deepEqual(body.sourceRefs,[]);assert.equal(body.knowledgeUsed,false);assert.equal(body.retrieval.status,'disabled');
     events.add(step.event);
   }
   assert.equal(events.size, 6);

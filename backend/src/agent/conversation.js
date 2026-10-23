@@ -33,12 +33,12 @@ export function createConversationStore({ now = Date.now, maxSessions = 200, ttl
       if (session.busy) return { error: { status: 409, body: { error: { code: 'CONVERSATION_BUSY', message: '上一个问题还在回答，请稍后重试。' } } } };
       session.busy = true; session.touched = time;
       return {
-        history: session.turns.map(({ question, answer, stepIndex, topicQuestion }) => ({ question, answer, stepIndex, topicQuestion })),
-        commit(response, topicQuestion) {
+        history: session.turns.map(({ question, answer, stepIndex }) => ({ question, answer, stepIndex })),
+        commit(response) {
           const turn = { turnId: body.turnId, fingerprint, question: body.question, answer: response.body.answer,
-            stepIndex: body.stepIndex, topicQuestion, response: structuredClone(response) };
+            stepIndex: body.stepIndex, response: structuredClone(response) };
           session.turns.push(turn);
-          const length = () => session.turns.reduce((sum, item) => sum + item.question.length + item.answer.length + item.topicQuestion.length, 0);
+          const length = () => session.turns.reduce((sum, item) => sum + item.question.length + item.answer.length, 0);
           while (session.turns.length > MAX_TURNS || length() > MAX_HISTORY_CHARS) session.turns.shift();
         },
         release() { session.busy = false; session.touched = now(); }
@@ -48,17 +48,3 @@ export function createConversationStore({ now = Date.now, maxSessions = 200, ttl
 }
 
 export const conversations = createConversationStore();
-
-export function resolveFollowup(question, history) {
-  const text = question.trim();
-  const previous = history.at(-1);
-  // Explicit current-step questions use the freshly selected step, not an old topic.
-  const followup = previous && !/(当前|现在|这一步|下一步)/.test(text) && [
-    /^(那|所以|这里|那里|这个|那个|它)?(能|可以|请|你|再|给我|帮我|说|讲|解释|详细|一点|一下|更|具体|展开|吗|呢|吧|[，,？?\s])+$/,
-    /^(那|所以)?(这里|那里|这个|那个|它)?(为啥|为什么|什么意思|是什么意思|怎么理解|怎么来的|有什么区别)[呢吗？?\s]*$/,
-    /^(我)?(还是|仍然)?(没[听看]?懂|不太?明白)[。？?\s]*$/,
-    /^(能|可以|请)?(再)?(换[个种一]?说法|换[个种一]?解释|换[个一]?例子|举[个一]?例子)(讲讲|解释|一下|吗|呢|[？?\s])*$/
-  ].some(pattern => pattern.test(text));
-  const topicQuestion = followup ? previous.topicQuestion : text;
-  return { followup: Boolean(followup), topicQuestion, query: followup ? (topicQuestion + ' ' + text).slice(0,2000) : text };
-}

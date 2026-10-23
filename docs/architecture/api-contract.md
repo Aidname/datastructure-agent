@@ -62,25 +62,21 @@ POST /api/exercises/check 输入示例：
 
 错误使用 `{error:{code,message}}`。非法JSON及上述输入错误为400 INVALID_INPUT；未知 API 为404 NOT_FOUND；请求解析失败可为400 INVALID_REQUEST。
 
-## Agent 与聊天（2026-10-22，PR #18修复版）
+## Agent 与聊天（2026-10-23，直接模型问答）
 
-请求为 `{runId,stepIndex,question,hintLevel,sessionId?}`。runId是非空字符串；stepIndex是非负安全整数数字，禁止类型转换；question是1至2000字符的非空字符串；hintLevel仅缺省时为1，显式仅接受数字1/2/3。客户端stepState不影响真实状态。sessionId仅用于用量展示，不是鉴权或限流身份。
+请求为{runId,stepIndex,question,hintLevel,sessionId?,conversationId?,turnId?}。runId非空；stepIndex为非负安全整数，不能类型转换；question为1至2000字符非空字符串；hintLevel缺省1，显式为数字1/2/3。客户端stepState/history不作为权威状态或历史。
 
-模式按以下优先级选择：显式AGENT_MOCK=true返回开发模板且不调用模型；否则配置DEEPSEEK_API_KEY时调用真实模型；其余情况503 MODEL_NOT_CONFIGURED。health中的mode和modelCallsEnabled与实际模式一致。
+显式AGENT_MOCK=true仍优先使用标注Mock的免费模板；关闭Mock且有Key时，每个通过参数/真实运行/额度检查的新问题直接交给DeepSeek，不做知识检索、问法识别或无资料拒答；无Key时503。成功请求原ID在保留窗口内重试可重放缓存，不重复调用。
 
-成功200返回runId、stepIndex、hintLevel、answer、stepRefs、sourceRefs、knowledgeUsed、retrieval、usage。状态来自04记录；按学生问题检索最多2张06的verified知识卡，再补充当前事件上下文卡，去重后最多3张放入prompt。stepRefs含原运行、步骤、事件、变量；sourceRefs含cardId/title/sourceId/sourceType/chapter/pages/version/verified。本批original的chapter/pages可为null。显式Mock正常步骤解释带[Mock开发模式]，usage为 `{model:"mock",cost:0,mock:true}`；无关问题/信息不足的本地固定回复另有irrelevant/infoInsufficient标记。
+prompt提供当前数组/目标/步骤/变量、上一步真实快照、展示代码全部sourceLines/高亮lineId/sourceVersion及最近最多10轮问答。历史只作上下文，不覆盖服务端事实。成功回复包含runId/stepIndex/hintLevel/answer/stepRefs/usage；兼容字段sourceRefs=[]、knowledgeUsed=false、retrieval={method:none,status:disabled,matchedCardIds:[],contextCardId:null,matches:[]}。stepRefs不再含knowledgeCard。聊天界面不显示知识卡出处。
 
-真实usage包含model、mock=false、tokens、elapsedMs、cost、costCurrency=CNY及costBasis。tokens有promptTokens/completionTokens/totalTokens；上游缺失或不合法时为null。单价不内置，需依据实际账户/model配置MODEL_INPUT_CNY_PER_MILLION和MODEL_OUTPUT_CNY_PER_MILLION；未配置时cost=null。金额仅为配置估算，非账单。
+conversationId和turnId须同时提供，均为8至80位字母/数字/下划线/连字符；不传时保持无历史单轮兼容。服务端按socket来源+runId+conversationId隔离，最多10轮成功完整问答、总8000个UTF-16字符，超限移除最早整轮。1小时无活动过期，最多200个会话，重启清空；切步骤保留，新运行换ID隔离。失败不入历史，成功回复不再受knowledgeUsed控制。
 
-GET /api/agent/usage?sessionId=... 返回当前socket来源+session、服务启动以来且北京时间当日的requests/failures/elapsedMs/tokensUsed/costUsed/unknownCalls。token未知与费用未知分别标null，不能转换成0。该展示统计重启清零；预算预留账本独立持久保存。
+同会话并发409 CONVERSATION_BUSY；全容量执行中429 CONVERSATION_BUSY；同turnId改写问题/步骤/级别400。重试保存原运行、步骤、级别及ID。限流依据socket来源，sessionId只作统计，换会话不重置来源额度。预算调用前同步预留，账本及未知用量处理保持原行为，详见[Agent说明](../../backend/src/agent/README.md)。
 
-错误：400 INVALID_INPUT（含非法JSON、超过10240字节）、404 RUN_NOT_FOUND、400 STEP_OUT_OF_RANGE、429 RATE_LIMIT_EXCEEDED、429 TOKEN_LIMIT_EXCEEDED、429 BUDGET_EXCEEDED、503 BUDGET_UNAVAILABLE、502 MODEL_CALL_FAILED、504 MODEL_TIMEOUT。超时覆盖响应头与正文，错误不回显上游诊断正文，不假称自动Mock降级；算法、动画和判分仍可独立使用。
+其他错误：400 INVALID_INPUT（含非法JSON、超过10KB）、404 RUN_NOT_FOUND、400 STEP_OUT_OF_RANGE、429 RATE_LIMIT_EXCEEDED/TOKEN_LIMIT_EXCEEDED/BUDGET_EXCEEDED、503 BUDGET_UNAVAILABLE、502 MODEL_CALL_FAILED、504 MODEL_TIMEOUT。空模型输出为502可重试，不缓存成成功固定话术。usage保留model/mock/tokens/elapsedMs/cost/CNY/估算依据，缺失或无价格仍为null；GET /api/agent/usage的统计及预算持久化边界不变。
 
-限流默认开启，按socket peer来源聚合；忽略session、User-Agent、x-forwarded-for。反向代理部署需另明确可信来源策略。预算调用前同步预留，避免并发重复分配；本地单进程持久账本位于已忽略的data/private/agent-budget.json，保留失败、未知用量及中断调用的预留。默认测试累计30元、每日5元；这是估算额度控制，实际账单仍以服务商为准，多实例需事务共享存储。配置见[Agent说明](../../backend/src/agent/README.md)。
-
-按问题检索已接入，详见下节；本分支已完成02/03/05工作台装配，07模块已在本分支接入并通过本地检查，真实模型效果及08独立验收仍待完成。聊天独立页支持URL传runId/stepIndex，失败重试保存原请求快照。02负责工作台装配，05配合；真实案例由05提供调用记录并配合08评测。
-
-回归：`node --test tests/knowledge-retrieval.test.mjs tests/agent-explain.test.mjs tests/agent-provider.test.mjs tests/agent-real-mode.test.mjs`。测试使用本地桩，不是实际模型效果证据。
+检查记录：[直接模型问答](agent-direct-chat-check-20261023.md)。本地桩不代表真实模型效果或08独立验收。
 
 ## 已核验知识查询与问题检索
 
@@ -88,21 +84,10 @@ GET /api/knowledge/cards?topicId=binary-search&q=问题&limit=3：topicId缺省b
 
 返回 `{topicId,query,cards,sourceRefs,retrieval}`。cards含id/topicId/title/content/keywords及出处版本字段；不返回内部review记录。retrieval.method=keyword-v1，status为catalog/matched/no-match；matches含cardId/score/matchedTerms，score是排序权重，不是模型置信度。
 
-Agent检索字段另含matchedCardIds与contextCardId。问题匹配优先于事件；“解释这一步”等问题用事件卡并标step-context。无匹配返回资料不足、空sourceRefs、knowledgeUsed=false、usage.insufficientKnowledge=true，不调用模型；明显无关问题标irrelevant。stepRefs.knowledgeCard仅指实际提供的事件上下文卡（可null），所有提供给模型的卡片列在sourceRefs中，不能将这些引用解释成每句话都已事实核验。
+此独立接口仅供知识卡阅读/查询，不参与聊天的模型调用与来源生成。
 
 本批只覆盖现有10张自编二分查找卡，不使用向量数据库，无额外依赖；排序细节及限制见[知识检索说明](../../backend/src/knowledge/README.md)。
 
 ## 正式工作台步骤上下文
 
-02使用04完整run和03唯一播放指针，显式分发初始步骤0；输入失效广播null并销毁旧播放/请求。代码按sourceLines/lineId渲染。05共享面板通过setContext同步当前run/step，提问暂停播放；更换run取消旧问答。07挂载点#exercise-mount，subscribeStep(listener)或workbench:step事件接收只读context：{runId,stepIndex,step,total,playing,sourceVersion}或null。07当前未实现，挂载区不代表练习/记录已交付。具体生命周期见[02接入说明](../../frontend/src/features/workbench/README.md)。
-
-### 连续追问（2026-10-23）
-
-可选增加conversationId与turnId，须同时提供，均为8至80位字母/数字/下划线/连字符；旧调用不传时保持无历史单轮行为。前端为独立运行会话和每次问题分别生成随机ID，失败重试复用原快照ID。
-
-服务端按socket来源+runId+conversationId隔离内存记录，最多10轮成功且有依据的完整问答，总文本上限8000个UTF-16字符；超限淘汰最早整轮。1小时无活动过期，最多200个会话，重启清空。客户端history不作为历史或权威状态，sessionId仍仅作统计。跨步骤保留对话并注入服务端真实状态，新run隔离。
-
-同会话并发409 CONVERSATION_BUSY；全部会话执行中且达到容量时429 CONVERSATION_BUSY。保留窗口内同turnId与相同请求重放成功结果，不重复调用模型；同ID改写问题/步骤/级别400 INVALID_INPUT。失败/无关/无资料回复不进入历史。正文不再自动拼接整卡，sourceRefs字段与来源展示保留。详见[检查记录](agent-conversation-check-20261023.md)。
-
-
-2026-10-23口语步骤问答补充：关键词未命中但问题可关联当前运行数值/指代时，retrieval.status可为step-grounded，提供真实步骤及相关verified卡给模型；matches/matchedCardIds为空，不伪称关键词或语义命中。prompt另附上一步服务端快照，避免当前mid=null时丢失上轮比较依据。无关问题处理、十轮隔离和限流预算保持原行为。
+02使用04完整run和03唯一播放指针，显式分发初始步骤0；输入失效广播null并销毁旧播放/请求。代码按sourceLines/lineId渲染。05共享面板通过setContext同步当前run/step，提问暂停播放；更换run取消旧问答。07挂载点#exercise-mount，subscribeStep(listener)或workbench:step事件接收只读context：{runId,stepIndex,step,total,playing,sourceVersion}或null。07练习/记录已接入，固定题仍使用独立题目情境。具体生命周期见[02接入说明](../../frontend/src/features/workbench/README.md)。
