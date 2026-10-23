@@ -15,6 +15,9 @@ try{
  await page.click('#nextBtn');await page.click('#nextBtn');
  await page.click('#tutor-toggle');
  await page.fill('#question-input','为什么是到7不是到5');
+ // IME candidate confirmation must not submit or suppress the character being committed.
+ const composing=await page.locator('#question-input').evaluate(node=>{const event=new KeyboardEvent('keydown',{key:'Enter',isComposing:true,bubbles:true,cancelable:true});node.dispatchEvent(event);return event.defaultPrevented;});assert.equal(composing,false);assert.equal(requests.length,0);
+ const legacyComposition=await page.locator('#question-input').evaluate(node=>{const event=new KeyboardEvent('keydown',{key:'Enter',keyCode:229,bubbles:true,cancelable:true});node.dispatchEvent(event);return event.defaultPrevented;});assert.equal(legacyComposition,false);assert.equal(requests.length,0);
  const groundedResponse=page.waitForResponse(r=>r.url().endsWith('/api/agent/explain'));
  await page.click('#send-btn');const grounded=await(await groundedResponse).json();
  await page.waitForFunction(()=>!document.querySelector('#send-btn').disabled);

@@ -13,9 +13,10 @@ try{
  await page.addInitScript(()=>{window.__steps=[];document.addEventListener('workbench:step',e=>window.__steps.push(e.detail));});
  await page.goto(base);await page.waitForFunction(()=>document.querySelector('#service-status').textContent.includes('已连接'));
  assert.equal(await page.locator('#send-btn').isDisabled(),true);assert.equal(await page.locator('#nextBtn').isDisabled(),true);
+ await page.click('#tutor-toggle');assert.equal(await page.locator('#question-input').isDisabled(),false);await page.click('#question-input');await page.keyboard.type('还没开始分析时先写下的问题');await page.click('#workbench-heading');
  if(await page.locator('#tutor-window').isVisible())await page.click('#workbench-heading');await page.click('#fillDemo');assert.equal(posts.length,0);if(await page.locator('#tutor-window').isVisible())await page.click('#tutor-close');await page.click('#startBtn');
  await page.waitForFunction(()=>document.querySelector('#stepText').textContent.includes('第 1 步'));
- const context=await page.evaluate(()=>window.__steps.at(-1));assert.equal(context.stepIndex,0);assert.ok(context.runId);assert.equal(await page.locator('#varMid').innerText(),'未计算');
+ assert.equal(await page.inputValue('#question-input'),'还没开始分析时先写下的问题');const context=await page.evaluate(()=>window.__steps.at(-1));assert.equal(context.stepIndex,0);assert.ok(context.runId);assert.equal(await page.locator('#varMid').innerText(),'未计算');
  assert.equal(await page.locator('#code-lines li.active').getAttribute('data-line-id'),context.step.lineId);
  assert.equal(await page.locator('#exercise-mount').getAttribute('data-run-id'),context.runId);
  await page.evaluate(()=>{if(document.querySelector('#tutor-window').hidden)document.querySelector('#tutor-toggle').click();});await page.fill('#question-input','这一步依据是什么？');await page.click('#send-btn');await page.waitForFunction(()=>!document.querySelector('#send-btn').disabled);

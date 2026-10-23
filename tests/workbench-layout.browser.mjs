@@ -37,11 +37,11 @@ try {
  assert.equal(await page.inputValue('#question-input'),'保留这条尚未发送的问题');
  let held;await page.route('**/api/agent/explain',route=>{held=route;});
  await page.click('#playBtn');assert.equal(await page.locator('#tutor-window').isVisible(),false);await page.click('#tutor-toggle');await page.click('#send-btn');while(!held)await new Promise(r=>setTimeout(r,5));
- assert.equal(await page.evaluate(()=>window.__steps.at(-1).playing),false);const body=held.request().postDataJSON();
+ assert.equal(await page.evaluate(()=>window.__steps.at(-1).playing),false);const body=held.request().postDataJSON();await page.fill('#question-input','等待回复时先写下一条问题');assert.equal(await page.locator('#send-btn').isDisabled(),true);
  await page.click('#nextBtn');assert.equal(await page.locator('#tutor-window').isVisible(),false);
  await held.fulfill({status:200,contentType:'application/json',body:JSON.stringify({runId:body.runId,stepIndex:body.stepIndex,hintLevel:body.hintLevel,answer:'收起期间收到的测试回复'})});
  await page.waitForFunction(()=>!document.querySelector('#send-btn').disabled);await page.click('#tutor-toggle');
- assert.match(await page.locator('.message.assistant').last().innerText(),new RegExp('步骤'+(body.stepIndex+1)));assert.match(await page.locator('.message.assistant').last().innerText(),/收起期间/);
+ assert.equal(await page.inputValue('#question-input'),'等待回复时先写下一条问题');assert.match(await page.locator('.message.assistant').last().innerText(),new RegExp('步骤'+(body.stepIndex+1)));assert.match(await page.locator('.message.assistant').last().innerText(),/收起期间/);
  await page.unroute('**/api/agent/explain');
  const before=await page.locator('#tutor-window').boundingBox(),handle=await page.locator('[data-tutor-drag]').boundingBox();
  await page.mouse.move(handle.x+80,handle.y+25);await page.mouse.down();await page.mouse.move(handle.x+20,handle.y+40,{steps:4});await page.mouse.up();

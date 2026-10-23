@@ -36,8 +36,14 @@ export function createAgentChat(container, { embedded = false, onBeforeSend = ()
     const body = document.createElement('div'); body.className = 'message-body'; body.textContent = text; node.append(body);
     messages.append(node); messages.scrollTop = messages.scrollHeight; return node;
   }
-  function controls() { send.disabled = busy || (embedded && !context); question.disabled = busy || (embedded && !context); }
-  function label() { $('current-step-label').textContent = stepInput.value === '' ? '先创建一次运行，再针对步骤提问。' : `当前选中：第 ${Number(stepInput.value)+1} 步`; }
+  function controls() {
+    send.disabled = busy || (embedded && !context);
+    send.textContent = busy ? '等待回复…' : '发送';
+    send.title = busy ? '回复完成后可发送下一条问题' : embedded && !context ? '先填入数组并点击“开始分析”' : '发送问题';
+    question.disabled = false;
+    question.placeholder = embedded && !context ? '可以先写问题，开始分析后再发送。' : '为什么下一步更新左边界？';
+  }
+  function label() { $('current-step-label').textContent = stepInput.value === '' ? (embedded ? '可以先写问题；填入数组并点击“开始分析”后即可发送。' : '先创建一次运行，再针对步骤提问。') : `当前选中：第 ${Number(stepInput.value)+1} 步`; }
   async function refreshUsage(sid = runInput.value.trim()) {
     const ticket = ++usageTicket;
     try {
@@ -91,7 +97,7 @@ export function createAgentChat(container, { embedded = false, onBeforeSend = ()
   }
   listen(send,'click',()=>submit());
   listen(retry,'click',()=>{ if (failed) submit({...failed}); });
-  listen(question,'keydown',event=>{ if (event.key==='Enter' && !event.shiftKey) { event.preventDefault(); submit(); } });
+  listen(question,'keydown',event=>{ if (event.key==='Enter' && !event.shiftKey && !event.isComposing && event.keyCode !== 229) { event.preventDefault(); submit(); } });
   listen(stepInput,'change',label); listen(runInput,'change',()=>refreshUsage());
   fetch('/api/health',{signal:lifetime.signal}).then(r=>r.json()).then(data=>{
     if (!alive) return;
