@@ -1,7 +1,7 @@
 import { requestJSON } from '../../services/api.js';
 import { createRecordStore, STORAGE_KEY } from '../records/store.js';
 import { createRecordsPanel } from '../records/panel.js';
-import { publicQuestion, parseAnswer, gradeFeedback, answerText, contextText } from './model.js';
+import { publicQuestion, parseAnswer, gradeFeedback, answerText, contextText, exerciseText } from './model.js';
 
 export function createExercises(container, { onBeforeAnswer = () => {}, store = createRecordStore(), recordsContainer = null, onPracticeRequested = () => {} } = {}) {
   container.innerHTML = `<div class="learning-layout"><div class="exercise-practice"><h3>过程练习</h3>
@@ -39,7 +39,7 @@ export function createExercises(container, { onBeforeAnswer = () => {}, store = 
     cancel(); selected = catalog.find(question => question.id === $('exercise-select').value) || null;
     const field = $('exercise-answer'); field.replaceChildren(); append('legend', '你的答案', field);
     if (!selected) { $('exercise-prompt').textContent = ''; $('exercise-scenario').textContent = ''; $('exercise-version').textContent = ''; controls(); return; }
-    $('exercise-prompt').textContent = selected.prompt; $('exercise-scenario').textContent = contextText(selected.context);
+    $('exercise-prompt').textContent = exerciseText(selected.prompt); $('exercise-scenario').textContent = contextText(selected.context);
     $('exercise-version').textContent = `题目 ${selected.id} · 版本 ${selected.version} · 固定题目情境`;
     if (selected.type === 'value') {
       const label = append('label', '整数答案', field); label.htmlFor = 'exercise-value';
@@ -49,7 +49,7 @@ export function createExercises(container, { onBeforeAnswer = () => {}, store = 
       for (const option of options) {
         const label = document.createElement('label'); label.className = 'exercise-option';
         const input = document.createElement('input'); input.type = 'radio'; input.name = 'answer'; input.value = option.id;
-        label.append(input, document.createTextNode((selected.type === 'choice' ? option.id + ' · ' : '') + option.text)); field.append(label);
+        label.append(input, document.createTextNode((selected.type === 'choice' ? option.id + ' · ' : '') + exerciseText(option.text))); field.append(label);
       }
     }
     controls();
@@ -65,7 +65,7 @@ export function createExercises(container, { onBeforeAnswer = () => {}, store = 
       if (!Array.isArray(data.exercises)) throw new Error('题库响应格式不正确。');
       catalog = data.exercises.filter(question => question.topicId === 'binary-search').map(publicQuestion);
       if (new Set(catalog.map(q => q.id)).size !== catalog.length) throw new Error('题库包含重复题号。');
-      for (const [i, question] of catalog.entries()) { const option = document.createElement('option'); option.value = question.id; option.textContent = `${i + 1}. ${question.prompt}`; $('exercise-select').append(option); }
+      for (const [i, question] of catalog.entries()) { const option = document.createElement('option'); option.value = question.id; option.textContent = `${i + 1}. ${exerciseText(question.prompt)}`; $('exercise-select').append(option); }
       $('exercise-select').disabled = !catalog.length; records.setCatalog(catalog); selectQuestion();
       $('exercise-load-status').textContent = catalog.length ? `已读取 ${catalog.length} 道题。答错后依次获得观察、规则与完整解析。` : '当前主题暂无题目。';
     } catch (error) {
@@ -79,8 +79,8 @@ export function createExercises(container, { onBeforeAnswer = () => {}, store = 
     if (result.correct) append('p', '回答正确。').className = 'exercise-correct';
     else {
       append('p', '回答不正确。').className = 'exercise-incorrect';
-      if (level < 3) append('p', `提示 ${level}：${result.hint}`);
-      else { append('p', `参考答案：${answerText(question, result.correctAnswer)}`); append('p', result.explanation); }
+      if (level < 3) append('p', `提示 ${level}：${exerciseText(result.hint)}`);
+      else { append('p', `参考答案：${answerText(question, result.correctAnswer)}`); append('p', exerciseText(result.explanation)); }
     }
   }
   async function submit(level) {

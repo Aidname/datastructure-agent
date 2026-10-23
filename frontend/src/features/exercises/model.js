@@ -44,11 +44,26 @@ export function answerText(question, answer) {
   if (question.type === 'judgement') return answer ? '正确' : '错误';
   if (question.type === 'choice') {
     const option = question.options.find(item => item.id === answer);
-    return option ? `${option.id} · ${option.text}` : String(answer);
+    return option ? `${option.id} · ${exerciseText(option.text)}` : String(answer);
   }
   return String(answer);
 }
 
+// Translate presentation only; question snapshots and grading values stay unchanged.
+const stageNames = {
+  init: '查找开始',
+  'before-probe': '计算中点前',
+  probe: '计算并比较中点',
+  'move-left': '已更新左边界',
+  'move-right': '已更新右边界',
+  found: '已找到目标',
+  'not-found': '查找结束，未找到目标'
+};
+const readingNames = { ...stageNames, probe: '中点比较', 'move-left': '左边界更新', 'move-right': '右边界更新', null: '未计算' };
+export function exerciseText(text) {
+  return String(text).replace(/\b(before-probe|move-left|move-right|not-found|init|probe|found|null)\b/g, name => readingNames[name]).replaceAll('快照', '状态');
+}
+
 export function contextText(context) {
-  return `数组 [${context.array.join(', ')}]，目标 ${context.target}；题目情境 ${context.event || '未标注'}，left=${context.left}，right=${context.right}，mid=${context.mid == null ? '未计算' : context.mid}。`;
+  return `数组 [${context.array.join(', ')}]，目标 ${context.target}；当前阶段：${Object.hasOwn(stageNames, context.event) ? stageNames[context.event] : '按题目给定状态'}；左边界 left=${context.left}，右边界 right=${context.right}，中点下标 mid=${context.mid == null ? '未计算' : context.mid}。`;
 }
