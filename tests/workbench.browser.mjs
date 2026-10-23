@@ -13,7 +13,7 @@ try{
  await page.addInitScript(()=>{window.__steps=[];document.addEventListener('workbench:step',e=>window.__steps.push(e.detail));});
  await page.goto(base);await page.waitForFunction(()=>document.querySelector('#service-status').textContent.includes('已连接'));
  assert.equal(await page.locator('#send-btn').isDisabled(),true);assert.equal(await page.locator('#nextBtn').isDisabled(),true);
- await page.click('#fillDemo');assert.equal(posts.length,0);await page.click('#startBtn');
+ await page.click('#fillDemo');assert.equal(posts.length,0);if(await page.locator('#tutor-window').isVisible())await page.click('#tutor-close');await page.click('#startBtn');
  await page.waitForFunction(()=>document.querySelector('#stepText').textContent.includes('第 1 步'));
  const context=await page.evaluate(()=>window.__steps.at(-1));assert.equal(context.stepIndex,0);assert.ok(context.runId);assert.equal(await page.locator('#varMid').innerText(),'未计算');
  assert.equal(await page.locator('#code-lines li.active').getAttribute('data-line-id'),context.step.lineId);
@@ -36,20 +36,20 @@ try{
  assert.equal(await page.evaluate(()=>window.__steps.length),count);assert.equal(await page.locator('#code-lines li.active').count(),0);assert.equal(await page.locator('#send-btn').isDisabled(),true);assert.equal(await page.evaluate(()=>window.__steps.at(-1)),null);
  passed.push('input edits destroy old playback and clear code/variables/Agent/07 context');
  const countBefore=posts.filter(p=>p.url.endsWith('/runs')).length;
- for(const [array,target] of [['1,,2','1'],['3,1','1'],['1.5,2','2'],['Infinity','1'],['1','9007199254740992'],[Array(101).fill('1').join(','),'1']]){await page.fill('#arrInput',array);await page.fill('#targetInput',target);await page.click('#startBtn');assert.ok((await page.locator('#msgBox').innerText()).length>0);}
+ for(const [array,target] of [['1,,2','1'],['3,1','1'],['1.5,2','2'],['Infinity','1'],['1','9007199254740992'],[Array(101).fill('1').join(','),'1']]){await page.fill('#arrInput',array);await page.fill('#targetInput',target);if(await page.locator('#tutor-window').isVisible())await page.click('#tutor-close');await page.click('#startBtn');assert.ok((await page.locator('#msgBox').innerText()).length>0);}
  assert.equal(posts.filter(p=>p.url.endsWith('/runs')).length,countBefore);
- await page.fill('#arrInput','');await page.fill('#targetInput','7');await page.click('#startBtn');await page.waitForFunction(()=>document.querySelector('#stepText').textContent.includes('第 1 步'));assert.equal(await page.locator('#varRight').innerText(),'-1');assert.match(await page.locator('#step-description').innerText(),/空数组/);
+ await page.fill('#arrInput','');await page.fill('#targetInput','7');if(await page.locator('#tutor-window').isVisible())await page.click('#tutor-close');await page.click('#startBtn');await page.waitForFunction(()=>document.querySelector('#stepText').textContent.includes('第 1 步'));assert.equal(await page.locator('#varRight').innerText(),'-1');assert.match(await page.locator('#step-description').innerText(),/空数组/);
  passed.push('invalid input blocked before HTTP; valid empty array is rendered');
 
  await page.route('**/api/algorithms/binary-search/runs',route=>route.fulfill({status:400,contentType:'application/json',body:JSON.stringify({error:{message:'测试：创建失败'}})}));
- await page.click('#fillDemo');await page.click('#startBtn');await page.waitForFunction(()=>document.querySelector('#msgBox').textContent.includes('创建失败'));assert.equal(await page.locator('#startBtn').isDisabled(),false);assert.equal(await page.locator('#nextBtn').isDisabled(),true);
- await page.unroute('**/api/algorithms/binary-search/runs');await page.route('**/api/algorithms/binary-search/runs',route=>route.fulfill({status:200,contentType:'application/json',body:'{}'}));await page.click('#startBtn');await page.waitForFunction(()=>document.querySelector('#msgBox').textContent.includes('不完整'));
+ await page.click('#fillDemo');if(await page.locator('#tutor-window').isVisible())await page.click('#tutor-close');await page.click('#startBtn');await page.waitForFunction(()=>document.querySelector('#msgBox').textContent.includes('创建失败'));assert.equal(await page.locator('#startBtn').isDisabled(),false);assert.equal(await page.locator('#nextBtn').isDisabled(),true);
+ await page.unroute('**/api/algorithms/binary-search/runs');await page.route('**/api/algorithms/binary-search/runs',route=>route.fulfill({status:200,contentType:'application/json',body:'{}'}));if(await page.locator('#tutor-window').isVisible())await page.click('#tutor-close');await page.click('#startBtn');await page.waitForFunction(()=>document.querySelector('#msgBox').textContent.includes('不完整'));
  await page.unroute('**/api/algorithms/binary-search/runs');passed.push('HTTP failure and malformed run produce visible errors with usable controls');
 
  async function apiRun(target){return(await fetch(base+'/api/algorithms/binary-search/runs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({array:[1,3,5,7,9],target})})).json();}
  const old=await apiRun(7),fresh=await apiRun(4),requests=[];
- await page.route('**/api/algorithms/binary-search/runs',route=>{requests.push(route);});await page.click('#startBtn');await page.waitForFunction(()=>document.querySelector('#startBtn').disabled);
- await page.fill('#targetInput','4');await page.click('#startBtn');while(requests.length<2)await new Promise(r=>setTimeout(r,5));
+ await page.route('**/api/algorithms/binary-search/runs',route=>{requests.push(route);});if(await page.locator('#tutor-window').isVisible())await page.click('#tutor-close');await page.click('#startBtn');await page.waitForFunction(()=>document.querySelector('#startBtn').disabled);
+ await page.fill('#targetInput','4');if(await page.locator('#tutor-window').isVisible())await page.click('#tutor-close');await page.click('#startBtn');while(requests.length<2)await new Promise(r=>setTimeout(r,5));
  await requests[1].fulfill({status:200,contentType:'application/json',body:JSON.stringify(fresh)});await page.waitForFunction(id=>window.__steps.at(-1)?.runId===id,fresh.runId);
  await requests[0].fulfill({status:200,contentType:'application/json',body:JSON.stringify(old)}).catch(()=>{});await page.waitForTimeout(50);assert.equal(await page.evaluate(()=>window.__steps.at(-1).runId),fresh.runId);
  await page.unroute('**/api/algorithms/binary-search/runs');passed.push('aborted old creation cannot overwrite a new run');
@@ -58,7 +58,7 @@ try{
  await page.fill('#targetInput','9');await answerRoute.fulfill({status:200,contentType:'application/json',body:JSON.stringify({answer:'不应显示的旧运行回答',runId:fresh.runId,stepIndex:0})}).catch(()=>{});await page.waitForTimeout(50);
  assert.equal(await page.getByText('不应显示的旧运行回答',{exact:true}).count(),0);assert.equal(await page.locator('#send-btn').isDisabled(),true);await page.unroute('**/api/agent/explain');passed.push('input invalidation cancels old Agent replies');
 
- await page.click('#fillDemo');await page.click('#startBtn');await page.waitForFunction(()=>document.querySelector('#stepText').textContent.includes('第 1 步'));await page.click('#nextBtn');
+ await page.click('#fillDemo');if(await page.locator('#tutor-window').isVisible())await page.click('#tutor-close');await page.click('#startBtn');await page.waitForFunction(()=>document.querySelector('#stepText').textContent.includes('第 1 步'));await page.click('#nextBtn');
  if(process.env.TEST_SCREENSHOT_DIR)await page.screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/workbench-desktop.png',fullPage:true});
  await page.setViewportSize({width:390,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
  if(process.env.TEST_SCREENSHOT_DIR)await page.screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/workbench-mobile.png',fullPage:true});

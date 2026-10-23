@@ -1,6 +1,8 @@
 # 过程练习（成员07代码，由01按用户授权补齐）
 
-正式入口为工作台下方“练习与学习记录”。createExercises挂载到#exercise-mount，读取06的10题公开字段，使用04真实程序判分，不依赖模型API。支持整数、单选、判断；空值不当作0，判断false不转成字符串。
+正式入口为侧栏独立“过程练习”页；本机记录在“错题与记录”页。createExercises挂载到#exercise-mount，读取06的10题公开字段，使用04真实程序判分，不依赖模型API。支持整数、单选、判断；空值不当作0，判断false不转成字符串。
+
+createExercises(container,{recordsContainer,onPracticeRequested,onBeforeAnswer,store})支持外部记录挂载点。正式页传入#records-mount并共享原store；重练时先选题，再调用onPracticeRequested切页并聚焦题目。不传recordsContainer仍保留内部记录面板，兼容原有调用。
 
 首次答错显示观察提示；用户主动点击后依次获得规则提示、完整答案及解析。正确响应不展示解析；未请求的提示和答案不预加载。更改答案后重新提交形成新作答，继续提示只更新原作答的提示级别。
 

@@ -3,22 +3,22 @@ import { createRecordStore, STORAGE_KEY } from '../records/store.js';
 import { createRecordsPanel } from '../records/panel.js';
 import { publicQuestion, parseAnswer, gradeFeedback, answerText, contextText } from './model.js';
 
-export function createExercises(container, { onBeforeAnswer = () => {}, store = createRecordStore() } = {}) {
+export function createExercises(container, { onBeforeAnswer = () => {}, store = createRecordStore(), recordsContainer = null, onPracticeRequested = () => {} } = {}) {
   container.innerHTML = `<div class="learning-layout"><div class="exercise-practice"><h3>过程练习</h3>
     <p class="learning-note">以下为固定题目，使用题目自己的数组与边界；可独立作答，不会调用模型。</p>
     <p id="exercise-load-status" role="status">正在读取题库…</p><button id="reload-exercises" class="secondary" type="button">刷新题库</button>
     <form id="exercise-form"><label for="exercise-select">选择题目<select id="exercise-select" disabled></select></label>
     <p id="exercise-version" class="learning-note"></p><h4 id="exercise-prompt"></h4><p id="exercise-scenario" class="exercise-scenario"></p>
     <fieldset id="exercise-answer" disabled><legend>你的答案</legend></fieldset><div class="exercise-actions"><button id="submit-exercise" type="submit" disabled>提交答案</button><button id="next-hint-btn" class="secondary" type="button" disabled>提示 2：理解规则</button></div></form>
-    <p id="exercise-status" role="status" aria-live="polite"></p><div id="exercise-feedback" aria-live="polite"></div></div><div id="records-mount"></div></div>`;
+    <p id="exercise-status" role="status" aria-live="polite"></p><div id="exercise-feedback" aria-live="polite"></div></div>${recordsContainer ? '' : '<div id="records-mount"></div>'}</div>`;
   const $ = id => container.querySelector('#' + id);
   const lifetime = new AbortController(); let catalog = [], selected = null, context = null, attempt = null;
   let controller = null, loadController = null, generation = 0, loadGeneration = 0, busy = false, alive = true;
   const listen = (node, type, fn) => node.addEventListener(type, fn, { signal: lifetime.signal });
-  const records = createRecordsPanel($('records-mount'), { store, onRetry(id, old) {
+  const records = createRecordsPanel(recordsContainer || $('records-mount'), { store, onRetry(id, old) {
     $('exercise-select').value = id; selectQuestion();
     if (old) $('exercise-status').textContent = '已载入当前版本；旧版本作答仅作回顾。';
-    $('exercise-select').focus();
+    onPracticeRequested(); $('exercise-select').focus();
   }, onClear() { cancel('作答记录已清除；需要提示时请重新提交答案。'); } });
 
   function controls() {
@@ -107,7 +107,7 @@ export function createExercises(container, { onBeforeAnswer = () => {}, store = 
         if (!store.addHint(previous.id, level, result)) { attempt = null; throw new Error('原作答记录已被清除，请重新提交答案。'); }
         attempt = { ...previous, level };
       }
-      $('exercise-status').textContent = result.correct ? '已完成程序判分，结果已加入本页学习记录。' : level < 3 ? '可以修改答案重试，或继续查看下一级提示。' : '已展示完整解析，可重新作答或选择下一题。';
+      $('exercise-status').textContent = result.correct ? '已完成程序判分，结果已加入本机学习记录。' : level < 3 ? '可以修改答案重试，或继续查看下一级提示。' : '已展示完整解析，可重新作答或选择下一题。';
     } catch (error) {
       if (!alive || ticket !== generation || error.name === 'AbortError') return;
       $('exercise-status').textContent = `提交失败：${error.message}`;
@@ -122,6 +122,6 @@ export function createExercises(container, { onBeforeAnswer = () => {}, store = 
   return { setContext(next) {
     const changed = (context?.runId ?? null) !== (next?.runId ?? null);
     context = next;
-    if (changed) cancel('工作台运行已更改。练习仍使用下方固定题目情境；请重新提交答案。');
+    if (changed) cancel('工作台运行已更改。练习仍使用题目自己的固定情境；请重新提交答案。');
   }, destroy() { alive = false; generation++; loadGeneration++; controller?.abort(); loadController?.abort(); lifetime.abort(); records.destroy(); container.replaceChildren(); } };
 }

@@ -46,12 +46,12 @@ try {
  const before=await page.locator('#tutor-window').boundingBox(),handle=await page.locator('[data-tutor-drag]').boundingBox();
  await page.mouse.move(handle.x+80,handle.y+25);await page.mouse.down();await page.mouse.move(handle.x+20,handle.y+40,{steps:4});await page.mouse.up();
  const after=await page.locator('#tutor-window').boundingBox();assert.ok(after.x<before.x-20);
- await page.click('#tutor-knowledge-tab');await page.waitForFunction(()=>document.querySelector('#knowledge-status').textContent.includes('10'));
+ await page.locator('.nav-item[data-page-link="knowledge"]').click();await page.waitForFunction(()=>document.querySelector('#knowledge-status').textContent.includes('10'));
  assert.equal(await page.locator('#knowledge-cards details').count(),10);await page.locator('#knowledge-cards summary').first().click();assert.match(await page.locator('#knowledge-cards details').first().innerText(),/项目自编/);
- await page.keyboard.press('Escape');assert.equal(await page.locator('#tutor-window').isVisible(),false);
- passed.push('floating tutor preserves draft/history and pending answers, opens without pausing, pauses on send, retains original step, drags, shows real knowledge cards and closes with Escape');
+ await page.locator('.nav-item[data-page-link="workbench"]').click();await page.click('#tutor-toggle');await page.keyboard.press('Escape');assert.equal(await page.locator('#tutor-window').isVisible(),false);
+ passed.push('floating tutor preserves draft/history and pending answers, opens without pausing, pauses on send, retains original step, drags, uses separate knowledge page and closes with Escape');
 
- if(process.env.TEST_SCREENSHOT_DIR){await mkdir(process.env.TEST_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/layout-desktop.png',fullPage:true});await page.locator('.workspace').screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/layout-workspace.png'});await page.click('#tutor-toggle');await page.click('#tutor-chat-tab');await page.screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/layout-tutor.png'});await page.click('#tutor-close');}
+ if(process.env.TEST_SCREENSHOT_DIR){await mkdir(process.env.TEST_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/layout-desktop.png',fullPage:true});await page.locator('.workspace').screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/layout-workspace.png'});await page.click('#tutor-toggle');await page.screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/layout-tutor.png'});await page.click('#tutor-close');}
  await page.fill('#arrInput',Array.from({length:100},(_,i)=>i).join(','));await page.fill('#targetInput','100');await page.click('#startBtn');await page.waitForFunction(()=>window.__steps.at(-1)?.stepIndex===0);
  const total=await page.locator('.tl-tick').count();assert.ok(total>5);
  for(const width of [1000,390,320]) {
