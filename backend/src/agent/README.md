@@ -12,7 +12,7 @@ Node >=22.9，使用内置 fetch，无新增运行依赖。根目录复制 `.env
 - `DEEPSEEK_MODEL` 配置模型，默认 deepseek-chat；`MODEL_TIMEOUT_MS` 包括响应头与正文，默认15000ms。失败502、超时504，不阻断算法及题库接口，不假称已自动降级。
 - API地址固定为官方HTTPS端点，旧的 MODEL_API_KEY/MODEL_NAME/MODEL_API_BASE 变量不再使用。
 
-先通过04的创建运行接口取得真实 runId，再访问 `/src/features/agent/chat.html?runId=实际runId&stepIndex=1`。步骤索引从0计数。聊天页可输入问题、选择三级提示、查看引用；失败重试使用原问题/运行/步骤/级别快照，切换输入不会改写历史回答的归属。
+先通过04的创建运行接口取得真实 runId，再访问 `/src/features/agent/chat.html?runId=实际runId&stepIndex=1`。步骤索引从0计数。聊天页可输入问题、选择三级提示、查看原运行/步骤归属；失败重试使用原问题/运行/步骤/级别快照，切换输入不会改写历史回答的归属。
 
 ## 接口与用量
 
@@ -39,7 +39,7 @@ node --test tests/knowledge-retrieval.test.mjs tests/agent-explain.test.mjs test
 
 测试仅使用显式加载的本地模型桩和虚拟Key，不访问付费模型。浏览器检查脚本为 `tests/agent-chat.browser.mjs`，需要本地可用的 Playwright 和 Edge；可用 `TEST_PLAYWRIGHT_MODULE` 指定已安装模块的入口绝对路径，然后运行 `node tests/agent-chat.browser.mjs`。
 
-聊天已通过共享panel接入本分支正式工作台，自动同步当前run/步骤；剩余：尚无真实Key端到端证据及08所需3组定制对比。不得将本地桩测试当成真实模型效果验收。以上按已有分工另做，不宣称本PR完成整个05任务。
+聊天已通过共享panel接入当前主分支正式工作台，自动同步当前run/步骤；剩余：仓库中仍缺08独立验收及3组真实模型定制对比证据。不得将本地桩测试当成真实模型效果验收。上述证据按已有分工补齐，不能将代码已接入等同于效果验收已通过。
 
 ## 连续追问与提示词
 

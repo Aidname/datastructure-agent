@@ -15,7 +15,7 @@
 
 ## 当前完成与下一步
 
-[PR #7](https://github.com/tw1l1ghtcc/datastructure-agent/pull/7)已合并10张卡、10道题及三级提示、11组人工预期和40项候选目录。离线检查通过；实际引擎、检索、界面和评分接口的联调尚未执行。参见[任务看板](../progress.md)与[内容接入说明](../../../content/exercises/HANDOFF.md)。
+[PR #7](https://github.com/tw1l1ghtcc/datastructure-agent/pull/7)已合并10张卡、10道题及三级提示、11组人工预期和40项候选目录。离线检查及后续04判分、独立知识查询、07正式练习消费已有01本地记录；08独立复核仍待完成。参见[任务看板](../progress.md)与[内容接入说明](../../../content/exercises/HANDOFF.md)。
 
 ## 日期与验收
 

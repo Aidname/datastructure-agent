@@ -1,8 +1,8 @@
 # 十人任务分配（第一次作业）
 
-2026-10-14 最新细化方案见 [方案 A：具体任务与验收清单](plan-a-detailed.md)。该文件保留原任务、依赖和计划日期；当前交付以[任务看板](progress.md)为准。后端运行/判分、06内容及09需求/原型设计已合并，生产全流程仍待集成。
+2026-10-14 最新细化方案见 [方案 A：具体任务与验收清单](plan-a-detailed.md)。该文件保留原任务、依赖和计划日期；当前交付以[任务看板](progress.md)为准。后端运行/判分、06内容及09需求/原型设计已合并，生产代码已接入并通过01本地检查，08独立验收和真实材料仍待完成。
 
-编号对应团队角色。当前[成员登记表](roster.md)已有8人，05/10资料待补；各成员复核自己的真实信息。以下日期均为 2026 年 10 月，北京时间。
+编号对应团队角色。当前[成员登记表](roster.md)已登记10人；各成员复核自己的真实信息。以下日期均为 2026 年 10 月，北京时间。
 
 | 成员 | 本次负责的具体实现/成果 | 主责路径 | 首个 PR | 完成验收 |
 |---|---|---|---|---|
@@ -10,7 +10,7 @@
 | 02 | 实现数组/目标输入、校验提示、代码高亮、变量面板、错误/加载显示；连接动画与聊天区域 | frontend/index.html、app.js、styles、features/workbench | 15 日 | 18 日 |
 | 03 | 实现数组格子、左右边界/中点/区间动画；开始暂停、前进回看、速度和重置；发布当前步骤 | frontend/src/features/visualization、playback | 15 日 | 18 日 |
 | 04 | 实现二分查找轨迹；C/C++ 展示代码行映射；创建运行、查状态、题目读取/判分接口；边界处理 | backend/src/algorithms、runs、routes、shared/algorithms | 15 日 | 17 日 |
-| 05 | 实现 DeepSeek 适配、状态查询/知识检索工具、当前步骤解释、三级提示、聊天界面、调用用量记录 | backend/src/agent、knowledge、frontend/src/features/agent | 15 日 | 19 日 |
+| 05 | 实现 DeepSeek 适配、真实状态/源码/历史上下文、独立知识查询、当前步骤解释、三级提示、聊天界面、调用用量记录 | backend/src/agent、knowledge、frontend/src/features/agent | 15 日 | 19 日 |
 | 06 | 核验并整理二分查找知识卡与出处；编写不少于 5 道过程题及答案/提示；协助完整覆盖表 | content/knowledge、exercises、sources、coverage | 15 日 | 17 日 |
 | 07 | 组织约 5 人真实访谈及试用；实现题目呈现、作答反馈、逐级提示、本机错题与进度记录 | frontend/src/features/exercises、records、docs/research | 15 日 | 19 日 |
 | 08 | 制作独立预期轨迹与边界测试；检查联动和模型失败；完成三个真实前后对比及证据整理 | tests、docs/evaluation | 15 日 | 20 日 |
