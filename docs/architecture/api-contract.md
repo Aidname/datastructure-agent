@@ -95,3 +95,11 @@ Agent检索字段另含matchedCardIds与contextCardId。问题匹配优先于事
 ## 正式工作台步骤上下文
 
 02使用04完整run和03唯一播放指针，显式分发初始步骤0；输入失效广播null并销毁旧播放/请求。代码按sourceLines/lineId渲染。05共享面板通过setContext同步当前run/step，提问暂停播放；更换run取消旧问答。07挂载点#exercise-mount，subscribeStep(listener)或workbench:step事件接收只读context：{runId,stepIndex,step,total,playing,sourceVersion}或null。07当前未实现，挂载区不代表练习/记录已交付。具体生命周期见[02接入说明](../../frontend/src/features/workbench/README.md)。
+
+### 连续追问（2026-10-23）
+
+可选增加conversationId与turnId，须同时提供，均为8至80位字母/数字/下划线/连字符；旧调用不传时保持无历史单轮行为。前端为独立运行会话和每次问题分别生成随机ID，失败重试复用原快照ID。
+
+服务端按socket来源+runId+conversationId隔离内存记录，最多10轮成功且有依据的完整问答，总文本上限8000个UTF-16字符；超限淘汰最早整轮。1小时无活动过期，最多200个会话，重启清空。客户端history不作为历史或权威状态，sessionId仍仅作统计。跨步骤保留对话并注入服务端真实状态，新run隔离。
+
+同会话并发409 CONVERSATION_BUSY；全部会话执行中且达到容量时429 CONVERSATION_BUSY。保留窗口内同turnId与相同请求重放成功结果，不重复调用模型；同ID改写问题/步骤/级别400 INVALID_INPUT。失败/无关/无资料回复不进入历史。正文不再自动拼接整卡，sourceRefs字段与来源展示保留。详见[检查记录](agent-conversation-check-20261023.md)。

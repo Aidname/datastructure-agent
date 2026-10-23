@@ -93,7 +93,8 @@ test('all six events and three levels cite the right real step and verified card
     assert.equal(body.sourceRefs[0].verified, true);
     assert.equal(body.sourceRefs[0].chapter, null);
     assert.equal(body.sourceRefs[0].pages, null);
-    assert.ok(body.answer.includes(card.title));
+    assert.equal(body.sourceRefs[0].title,card.title);
+    assert.ok(!body.answer.includes(card.content));
     events.add(step.event);
   }
   assert.equal(events.size, 6);

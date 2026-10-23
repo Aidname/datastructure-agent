@@ -16,7 +16,7 @@
 
 ## 05聊天
 
-`createAgentChat(container,{embedded:true,onBeforeSend})`挂载原05的共享聊天逻辑；工作台直接调用setContext，隐藏手工运行/步骤输入。ui.js管理可收起侧栏、右下可拖动浮窗及知识卡入口；浮窗收起保留DOM、草稿和历史，打开不暂停。点击发送先暂停播放。相同步骤/同一run的迟到回答标注原步骤；换run或输入失效时取消旧问答，旧结果不能写入新运行。独立chat.html仍可单独使用。
+`createAgentChat(container,{embedded:true,onBeforeSend})`挂载原05的共享聊天逻辑；工作台直接调用setContext，隐藏手工运行/步骤输入。ui.js管理可收起侧栏、右下可拖动浮窗及知识卡入口；浮窗收起保留DOM、草稿和历史，打开不暂停。点击发送先暂停播放。前端为同一运行保留独立conversationId，新问题生成turnId、重试复用原ID；换运行清空会话关联，服务端最多参考最近10轮并限制历史总长度。相同步骤/同一run的迟到回答标注原步骤；换run或输入失效时取消旧问答，旧结果不能写入新运行。独立chat.html仍可单独使用。
 
 ## 07挂载与上下文
 
