@@ -18,7 +18,7 @@ try {
   window.removeEventListener=function(type,fn,...args){if(type==='keydown')window.__keys.delete(fn);return remove.call(this,type,fn,...args);};
  });
  await page.goto(base);await page.waitForFunction(()=>document.querySelector('.vizwin')&&document.querySelector('#exercise-load-status').textContent.includes('10'));
- assert.equal(await page.locator('#playBtn').isDisabled(),true);assert.equal(await page.locator('[data-tl-ruler]').getAttribute('aria-disabled'),'true');
+ assert.equal(await page.locator('.win-actions button').count(),1);assert.equal(await page.locator('[data-viz-fit],[data-viz-reset]').count(),0);assert.equal(await page.locator('[data-viz-full]').innerText(),'全屏');assert.equal(await page.locator('#playBtn').isDisabled(),true);assert.equal(await page.locator('[data-tl-ruler]').getAttribute('aria-disabled'),'true');
  const keyCount=await page.evaluate(()=>window.__keys.size);
  await page.click('#fillDemo');await page.click('#startBtn');await page.waitForFunction(()=>window.__steps.at(-1)?.stepIndex===0);
  await page.waitForFunction(()=>document.querySelector('[data-viz-scene]').style.transform.includes('scale('));
@@ -47,17 +47,17 @@ try {
  before=await scene.getAttribute('style');await page.mouse.down();await page.mouse.move(x+40,y+25,{steps:5});await page.mouse.up();assert.notEqual(await scene.getAttribute('style'),before);
  await view.focus();await page.keyboard.press('Home');assert.match(await scene.getAttribute('style'),/translate\(0px, 0px\)/);assert.equal(await ruler.getAttribute('aria-valuenow'),'2');
  const bar=await page.locator('.win-title').boundingBox();await page.mouse.move(bar.x+bar.width/2,bar.y+bar.height/2);await page.mouse.down();await page.mouse.move(bar.x+bar.width/2+8,bar.y+bar.height/2+8,{steps:4});await page.mouse.up();assert.ok(await page.locator('.vizwin').getAttribute('style'));
- await page.click('[data-viz-fit]');assert.equal(await page.locator('.vizwin').getAttribute('data-fitted'),'true');await page.click('[data-viz-reset]');assert.equal(await page.locator('.vizwin').getAttribute('data-fitted'),'false');
- passed.push('wheel zoom, viewport pan, Home fit and window drag/maximize/reset preserve the selected step');
+ passed.push('wheel zoom, viewport pan, Home fit and window drag preserve the selected step');
  await page.click('[data-viz-full]');assert.equal(await page.locator('body').getAttribute('class'),'is-viz-full');
  const full=await page.locator('.vizwin').boundingBox();assert.ok(Math.abs(full.x)<1&&Math.abs(full.y)<1&&Math.abs(full.width-1600)<2&&Math.abs(full.height-1000)<2);
  await page.keyboard.press('Shift+Tab');assert.ok(await page.evaluate(()=>document.querySelector('.vizwin').contains(document.activeElement)));
- await page.keyboard.press('Escape');assert.notEqual(await page.locator('body').getAttribute('class'),'is-viz-full');
+ await page.click('[data-viz-full]');assert.notEqual(await page.locator('body').getAttribute('class'),'is-viz-full');assert.equal(await page.locator('[data-viz-full]').innerText(),'全屏');assert.equal(await ruler.getAttribute('aria-valuenow'),'2');
+ await page.click('[data-viz-full]');assert.equal(await page.locator('[data-viz-full]').getAttribute('aria-pressed'),'true');assert.equal(await page.locator('[data-viz-full]').innerText(),'退出全屏');await page.keyboard.press('Escape');assert.notEqual(await page.locator('body').getAttribute('class'),'is-viz-full');assert.equal(await page.locator('[data-viz-full]').getAttribute('aria-pressed'),'false');
  await page.click('[data-viz-full]');await page.fill('#targetInput','4');await page.waitForTimeout(320);
  assert.notEqual(await page.locator('body').getAttribute('class'),'is-viz-full');assert.equal(await page.locator('.vizwin').count(),1);assert.equal(await page.locator('#nextBtn').isDisabled(),true);
  for(let i=0;i<12;i++)await page.fill('#targetInput',String(i));
  assert.equal(await page.evaluate(()=>window.__keys.size),keyCount);assert.equal(await page.locator('.vizwin').count(),1);
- passed.push('fullscreen covers viewport, traps focus, exits on Escape and run replacement; listeners do not accumulate');
+ passed.push('fullscreen covers viewport, traps focus, exits on the same button, Escape and run replacement; listeners do not accumulate');
  await page.click('#fillDemo');await page.click('#startBtn');await page.waitForFunction(()=>window.__steps.at(-1)?.stepIndex===0);await page.click('#nextBtn');await page.waitForTimeout(80);
  if(process.env.TEST_SCREENSHOT_DIR){await mkdir(process.env.TEST_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/window-desktop.png',fullPage:true});await page.locator('.workspace').screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/window-workspace.png'});await page.click('[data-viz-full]');await page.screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/window-fullscreen.png'});await page.keyboard.press('Escape');}
  await page.setViewportSize({width:390,height:844});await page.waitForFunction(()=>{

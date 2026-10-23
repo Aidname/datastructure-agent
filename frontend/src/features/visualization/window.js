@@ -13,9 +13,7 @@ const TEMPLATE = `
   <span class="win-title">执行过程</span>
   <span class="win-sub">二分查找 · 闭区间 · 数组视图</span>
   <span class="win-actions">
-    <button class="win-action" type="button" data-viz-full title="铺满整个屏幕（Esc 退出）">全屏</button>
-    <button class="win-action" type="button" data-viz-fit title="铺满工作区">最大化</button>
-    <button class="win-action" type="button" data-viz-reset title="回到默认大小">复位窗口</button>
+    <button class="win-action" type="button" data-viz-full aria-pressed="false" title="铺满整个屏幕（Esc 退出）">全屏</button>
   </span>
 </div>
 <div class="win-body-viz">
@@ -115,7 +113,7 @@ export function createVizWindow(host, {
     const h = Math.round(body.clientHeight);
     const tiny = w < 240 || h < 170;
     warn.hidden = !tiny;
-    if (tiny) warn.textContent = `可视区只有 ${w}×${h}px，数组会被压得很小：可以把窗口拖大或点「最大化」。`;
+    if (tiny) warn.textContent = `可视区只有 ${w}×${h}px，数组会被压得很小：可以点「全屏」放大查看。`;
   }
 
   function fitView() {
@@ -176,25 +174,6 @@ export function createVizWindow(host, {
   $('[data-viz-view-reset]').addEventListener('click', fitView);
   $('[data-viz-replay]').addEventListener('click', () => viz?.playEnterAnimation());
 
-  $('[data-viz-fit]').addEventListener('click', () => {
-    setFull(false);
-    root.style.left = '0px';
-    root.style.top = '0px';
-    root.style.width = '100%';
-    root.style.height = '100%';
-    root.dataset.fitted = 'true';
-    queueFit();
-  });
-  $('[data-viz-reset]').addEventListener('click', () => {
-    setFull(false);
-    root.style.left = '';
-    root.style.top = '';
-    root.style.width = '';
-    root.style.height = '';
-    root.dataset.fitted = 'false';
-    queueFit();
-  });
-
   /* 全屏：整个白底窗口铺满屏幕。
      全屏会盖住顶栏与分区胶囊，所以标题栏留「退出全屏」，并且 Esc 也能退。 */
   const fullBtn = $('[data-viz-full]');
@@ -209,11 +188,14 @@ export function createVizWindow(host, {
       root.style.top = '';
       root.style.width = '';
       root.style.height = '';
-      root.dataset.fitted = 'false';
     }
     if (on) { root.setAttribute('role','dialog'); root.setAttribute('aria-modal','true'); root.setAttribute('aria-label','二分查找可视化'); }
     else { root.removeAttribute('role'); root.removeAttribute('aria-modal'); root.removeAttribute('aria-label'); }
-    if (fullBtn) fullBtn.textContent = on ? '退出全屏' : '全屏';
+    if (fullBtn) {
+      fullBtn.textContent = on ? '退出全屏' : '全屏';
+      fullBtn.title = on ? '退出全屏（Esc）' : '铺满整个屏幕（Esc 退出）';
+      fullBtn.setAttribute('aria-pressed', String(on));
+    }
     queueFit();
     // 延迟取景必须自己管住：窗口被销毁后这个回调还会跑，所以存住句柄、destroy 时清掉
     if (fitTimer) clearTimeout(fitTimer);
@@ -358,7 +340,7 @@ export function createVizWindow(host, {
   const rulerObserver = new ResizeObserver(updateLabelDensity); rulerObserver.observe(ruler);
   const bar = $('.win-bar'); let drag = null;
   bar.addEventListener('pointerdown', event => {
-    if (event.button !== 0 || event.target.closest('button') || root.dataset.full === 'true' || root.dataset.fitted === 'true') return;
+    if (event.button !== 0 || event.target.closest('button') || root.dataset.full === 'true') return;
     const box = root.getBoundingClientRect(), bounds = host.getBoundingClientRect();
     drag = {x:event.clientX,y:event.clientY,left:box.left-bounds.left,top:box.top-bounds.top};
     root.style.width = box.width+'px'; root.style.height = box.height+'px';
