@@ -7,6 +7,20 @@ export function createWorkbenchUI({ onNavigate = () => {} } = {}) {
   const listen = (node, type, fn) => node.addEventListener(type, fn, { signal: lifetime.signal });
   const panel = $('tutor-window'), ball = $('tutor-toggle'), sidebar = $('sidebar-toggle');
   const uiKey = 'datastructure-agent:workbench-ui:v1';
+  const nav = document.querySelector('.sidebar nav');
+  function syncNavIndicator() {
+    const active = nav.querySelector('.nav-item.active');
+    if (!active?.getClientRects().length) return;
+    const item = active.getBoundingClientRect(), bounds = nav.getBoundingClientRect();
+    nav.style.setProperty('--nav-active-y', (item.top-bounds.top)+'px');
+    nav.style.setProperty('--nav-active-height', item.height+'px');
+    if (!nav.dataset.indicatorReady) {
+      nav.dataset.indicatorReady = 'true';
+      nav.getBoundingClientRect(); // Place the initial highlight before enabling transitions.
+      nav.classList.add('indicator-animated');
+    }
+  }
+  const navObserver = new ResizeObserver(syncNavIndicator); navObserver.observe(nav);
   let open = false, returnFocus = ball, drag = null, cardsLoaded = false, cardsBusy = false;
   let positionFrame = null;
   function queuePosition() {
@@ -28,6 +42,7 @@ export function createWorkbenchUI({ onNavigate = () => {} } = {}) {
     sidebar.setAttribute('aria-label', collapsed ? '展开侧栏' : '收起侧栏');
     sidebar.title = collapsed ? '展开侧栏' : '收起侧栏';
     sidebar.querySelector('[data-sidebar-arrow]').textContent = collapsed ? '›' : '‹';
+    syncNavIndicator();
   }
   updateSidebar();
   listen(sidebar, 'click', () => {
@@ -73,6 +88,7 @@ export function createWorkbenchUI({ onNavigate = () => {} } = {}) {
       link.classList.toggle('active', active);
       if (active) link.setAttribute('aria-current','page'); else link.removeAttribute('aria-current');
     }
+    syncNavIndicator();
     currentPage = name; document.body.dataset.page = name;
     if (innerWidth <= 540) { document.body.dataset.sidebarCollapsed = 'true'; updateSidebar(); }
     $('page-breadcrumb').textContent = pages[name]; document.title = pages[name] + ' · 看懂每一步';
@@ -140,6 +156,6 @@ export function createWorkbenchUI({ onNavigate = () => {} } = {}) {
   return {
     navigate,
     setContext(context) { $('tutor-prompt').textContent = prompts[context?.step?.event] || prompts.init; queuePosition(); },
-    destroy() { lifetime.abort(); layoutObserver.disconnect(); if (positionFrame !== null) cancelAnimationFrame(positionFrame); }
+    destroy() { lifetime.abort(); navObserver.disconnect(); delete nav.dataset.indicatorReady; nav.classList.remove('indicator-animated'); layoutObserver.disconnect(); if (positionFrame !== null) cancelAnimationFrame(positionFrame); }
   };
 }
